@@ -2,19 +2,49 @@
 open Funogram.Api
 open Funogram.Bot
 open Funogram.Types
-open Microsoft.Extensions.Caching.Memory
 open System.Net.Http
 open MihaZupan
 open Newtonsoft.Json
-open Polly
 open System.IO
 open System.Threading.Tasks
 open System.Threading
-open Polly.Caching.Memory
 
 [<AutoOpen>]
 module Operators =
     let (^) f x = f x
+
+[<RequireQualifiedAccess>]
+module Caching = 
+    open Polly
+    open Microsoft.Extensions.Caching.Memory
+    open Polly.Caching.Memory
+
+    let private cachePolicy = 
+        let provider = new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions()))
+        Policy.CacheAsync(provider, TimeSpan.FromHours(24.0))
+    
+    let cache key computation = 
+        async {
+            let! result = 
+                cachePolicy.ExecuteAsync<'T>(fun _ -> Async.StartAsTask computation
+                                            ,new Context(key))
+                |> Async.AwaitTask
+            return result
+        }
+
+[<AutoOpen>]
+module ApiExtensions =
+    open Polly
+
+    type ApiCallResult<'T> = Result<'T, ApiResponseError>
+
+    let callApiWithRetry (call: Async<ApiCallResult<'T>>) =
+        Policy.HandleResult<ApiCallResult<'T>>(function | Error _ -> true | Ok _ -> false)
+              .RetryForeverAsync()
+              .ExecuteAsync(fun _ -> Async.StartAsTask call)
+        |> Async.AwaitTask     
+
+    let callApi context = api context.Config >> callApiWithRetry    
 
 [<CLIMutable>]
 type Socks5Configuration = {
@@ -28,77 +58,64 @@ type Socks5Configuration = {
 type BotConfig = {
     Socks5Proxy: Socks5Configuration
     Token: string
-    ChatsToBanIn: int64 array
+    ChatsToBanIn: string array
+    AllowedUsers: string array
 }
 
 type BotSettings = {
-    ChatsToBanIn: int64 array
+    ChatsToBanIn: string array
+    AllowedUsers: string array
 }
 
-let cache :  string -> Async<'T> -> Async<'T> = 
-    let provider = new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions()))
-    let cachePolicy = Policy.CacheAsync(provider, TimeSpan.FromHours(24.0))
-    fun key computation -> async {
-        let! result = 
-            cachePolicy.ExecuteAsync<'T>(fun ctx -> Async.StartAsTask computation
-                                        ,new Context(key))
-            |> Async.AwaitTask
-        return result
-    }
+type BotMessage = 
+    | Message of Message
+    | InlineQuery of InlineQuery
 
-type ApiCallResult<'T> = Result<'T, ApiResponseError>
-
-let callApiWithRetry (call: Async<ApiCallResult<'T>>) =
-    Policy.HandleResult<ApiCallResult<'T>>(function | Error _ -> true | Ok _ -> false)
-          .RetryAsync(5)
-          .ExecuteAsync(fun _ -> Async.StartAsTask call)
-    |> Async.AwaitTask     
-
-let callApi context = api context.Config >> callApiWithRetry
-
-let getAdministrators context chat = async {
-    match! getChatAdministrators chat |> callApi context with
-    | Ok data ->
-        return data |> List.ofSeq
-    | Error _ ->
-        return []
-}
-
-let getAllAdministrators context chats = async {
-    let! admins = 
-        chats
-        |> Seq.map (getAdministrators context)
-        |> Async.Parallel
-    return admins
-            |> Seq.collect id
-            |> Seq.distinct
-            |> List.ofSeq
-}
+[<RequireQualifiedAccess>]
+module BotMessage =
+    let fromUpdate (update: Update) =
+        match update.InlineQuery with
+        | Some query -> InlineQuery query |> Some
+        | None ->
+            match update.Message with
+            | Some message -> Message message |> Some
+            | None -> None
 
 let onUpdate (settings: BotSettings) (context: UpdateContext) =
-    async {
-        let isUserAdmin userId = async {
-            let! admins = 
-                getAllAdministrators context settings.ChatsToBanIn
-                |> cache "Admins"
-            return admins
-                   |> Seq.exists ^ fun admin -> admin.User.Id = userId
-        }
+    let isAllowedUser username =
+        settings.AllowedUsers 
+        |> Array.contains username
 
-        context.Update.Message
-        |> Option.bind ^ fun message ->
-            match message.From with
-            | Some from -> Some(message, from)
-            | None -> None
-        |> Option.bind ^ fun (message, from) ->
-            let a = isUserAdmin from.Id
-            None
-        |> Option.iter ^ fun (message, from) ->
-            processCommands context [
-                cmd "/ban" ^ fun ctx -> ()
-                cmd "/unban" ^ fun ctx -> ()
-            ]
-            |> ignore
+    let handleMessage (message: Message) =
+        async {
+            message.From
+            |> Option.bind ^ fun from ->
+                {| Message = message; From = from |}
+                |> Some
+            |> Option.bind ^ fun data ->
+                data.From.Username
+                |> Option.bind ^ fun username ->
+                    if isAllowedUser username then 
+                        {| data with Username = username |}
+                        |> Some
+                    else None
+            |> Option.iter ^ fun data ->
+            
+                deleteMessageByChatName "" data.Message.MessageId
+                |> callApi context
+        }
+    
+    let handleInlineQuery (query: InlineQuery) = 
+        ()
+
+    async {
+        BotMessage.fromUpdate context.Update
+        |> Option.iter ^ fun botMessage ->
+            match botMessage with
+            | InlineQuery query -> 
+                handleInlineQuery query
+            | Message message -> 
+                do! handleMessage message
     } |> Async.StartImmediate
     
 
@@ -118,12 +135,15 @@ let main _ =
         defaultConfig with 
             Token = config.Token
             Client = createHttpClient config.Socks5Proxy
-            AllowedUpdates = ["message"] |> Seq.ofList |> Some
+            AllowedUpdates = ["message"; "inline_query"] |> Seq.ofList |> Some
     }
 
     async {
         printfn "Starting bot"
-        do! startBot botConfiguration (onUpdate { ChatsToBanIn = config.ChatsToBanIn }) None
+        let settings = 
+            { ChatsToBanIn = config.ChatsToBanIn
+              AllowedUsers = config.AllowedUsers }
+        do! startBot botConfiguration (onUpdate settings) None
             |> Async.StartChild
             |> Async.Ignore
         printfn "Bot started"
