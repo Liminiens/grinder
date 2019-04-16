@@ -19,21 +19,23 @@ module Operators =
 module ApiExtensions =
     type ApiCallResult<'T> = Result<'T, ApiResponseError>
 
-    let private random = new Random()
+    let private jitter = new Random()
 
     let rec private retry times (call: Async<ApiCallResult<'T>>) = async {
         match! call with 
         | Ok ok -> 
-            return ()
+            return Ok ok
         | Error e ->
             printfn "Api call error: %A; ErrorCode: %i" e.Description e.ErrorCode
             if times <> 0 then
-                let delay = random.Next(0, 3) |> float
+                let delay = jitter.Next(0, 3) |> float
                 do! Task.Delay(TimeSpan.FromSeconds(1. + delay)) |> Async.AwaitTask
                 return! retry (times - 1) call
+            else
+                return Error e
     }
 
-    let callApi context = api context.Config >> retry 10    
+    let callApiWithRetry context times = api context.Config >> retry times  
 
 [<RequireQualifiedAccess>]
 module Async =
@@ -75,9 +77,8 @@ module BotMessage =
 type MessageToBot =
     | Command of {| Usernames: string list; Command: string |}
     | InvalidCommand
-
-[<RequireQualifiedAccess>]
-module Control =
+    
+module Command =
     open System.Text.RegularExpressions
 
     type MessageType = 
@@ -91,15 +92,15 @@ module Control =
             CommandForBot command
         else
             Nothing
-    
+   
     type Minutes = Minutes of int32
 
     type Months = Months of int32
 
     type Days = Days of int32
-
+    
     let getMinutes text = 
-        let result = Regex.Match(text, "(\d+) min(s)?")
+        let result = Regex.Match(text, "(\d+)\s+min(s)?")
         if result.Success then
             let value = int32 result.Groups.[0].Value
             if value > 0 then 
@@ -110,7 +111,7 @@ module Control =
             None
     
     let getDays text = 
-        let result = Regex.Match(text, "(\d+) day(s)?")
+        let result = Regex.Match(text, "(\d+)\s+day(s)?")
         if result.Success then
             let value = int32 result.Groups.[0].Value
             if value > 0 then 
@@ -121,7 +122,7 @@ module Control =
             None
     
     let getMonths text = 
-        let result = Regex.Match(text, "(\d+) month(s)?")
+        let result = Regex.Match(text, "(\d+)\s+month(s)?")
         if result.Success then
             let value = int32 result.Groups.[0].Value
             if value > 0 then 
@@ -132,7 +133,7 @@ module Control =
             None
 
     let getUsernamesAndCommand text =
-        let matches = Regex.Matches(text, "@(?!\d{1})(\w|\d)+")
+        let matches = Regex.Matches(text, "@(\w|\d)+")
         let usernames = 
             matches
             |> Seq.map ^ fun m -> m.Value
@@ -150,7 +151,7 @@ module Control =
         | CommandForBot text -> 
             match getUsernamesAndCommand text with
             | Command data ->
-                let minutes = Regex.
+                ()
             | InvalidCommand -> ()   
         | Nothing -> ()
 
@@ -163,8 +164,21 @@ let onUpdate (settings: BotSettings) (context: UpdateContext) =
         settings.ChatsToMonitor 
         |> Array.contains chatUsername
     
-    let restrictUser chat userId until =
-        restrictChatMemberBase (String(chat)) userId until (Some(false)) (Some(false)) (Some(false)) (Some(false))
+    let restrictUser context chat userId until =
+        async {
+            let! user = 
+                getChatMemberByChatName chat userId
+                |> callApiWithRetry context 4
+            match user with
+            | Ok _ ->
+                do! 
+                    restrictChatMemberBase (String(chat)) userId (Some until) (Some false) (Some false) (Some false) (Some false)
+                    |> callApiWithRetry context 4
+                    |> Async.Ignore      
+                return sprintf "Restricted in %s" chat
+            | Error _ ->
+                return sprintf "Not restricted in %s" chat
+        }
 
     let handleMessage (message: Message) =
         async {
@@ -193,15 +207,16 @@ let onUpdate (settings: BotSettings) (context: UpdateContext) =
                             None
                 |> Option.map ^ fun data ->
                     async {
+                        do! deleteMessage data.Message.Chat.Id data.Message.MessageId
+                            |> callApiWithRetry context 4
+                            |> Async.Ignore
                         let requests = [
-                            yield deleteMessage data.Message.Chat.Id data.Message.MessageId
-                                  |> callApi context
                             for chat in settings.ChatsToMonitor do
-                                let time = DateTime.UtcNow.AddMinutes(1.) |> Some
-                                yield restrictUser chat data.From.Id time
-                                      |> callApi context
+                                let time = DateTime.UtcNow.AddMinutes(1.)
+                                yield restrictUser context chat data.From.Id time
                         ]
-                        do! Async.Parallel requests |> Async.Ignore
+                        let! text = Async.Parallel requests
+                        ()
                     }
                 |> Option.defaultValue Async.Unit
         }

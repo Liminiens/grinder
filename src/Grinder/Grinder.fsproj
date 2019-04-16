@@ -15,7 +15,12 @@
     </ItemGroup>
     
     <ItemGroup>
+        <Content Include="bot_config.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
         <Compile Include="Program.fs" />
     </ItemGroup>
+    
+    <ItemGroup />
 
 </Project>
