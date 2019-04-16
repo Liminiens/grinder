@@ -72,16 +72,6 @@ module BotMessage =
         | None -> 
             None
 
-type RestrictionLength =
-    | NoRestriction
-    | Forever
-    | Minutes of uint16
-    | Days of uint16
-    | Months of uint16
-    | Complex of {| Minutes: uint16; Days: uint16; Months: uint16; |}
-
-
-
 type MessageToBot =
     | Command of {| Usernames: string list; Command: string |}
     | InvalidCommand
@@ -90,17 +80,56 @@ type MessageToBot =
 module Control =
     open System.Text.RegularExpressions
 
-    type private MessageType = 
+    type MessageType = 
         | CommandForBot of string
         | Nothing
 
-    let private validate (botUsername: string) (text: string) = 
+    let validate (botUsername: string) (text: string) = 
         let text = text.Trim()
         if text.StartsWith(botUsername) then
             let command = text.Substring(0, botUsername.Length - 1).Trim()
             CommandForBot command
         else
             Nothing
+    
+    type Minutes = Minutes of int32
+
+    type Months = Months of int32
+
+    type Days = Days of int32
+
+    let getMinutes text = 
+        let result = Regex.Match(text, "(\d+) min(s)?")
+        if result.Success then
+            let value = int32 result.Groups.[0].Value
+            if value > 0 then 
+                value |> Minutes |> Some
+            else
+                None
+        else
+            None
+    
+    let getDays text = 
+        let result = Regex.Match(text, "(\d+) day(s)?")
+        if result.Success then
+            let value = int32 result.Groups.[0].Value
+            if value > 0 then 
+                value |> Days |> Some
+            else
+                None
+        else
+            None
+    
+    let getMonths text = 
+        let result = Regex.Match(text, "(\d+) month(s)?")
+        if result.Success then
+            let value = int32 result.Groups.[0].Value
+            if value > 0 then 
+                value |> Months |> Some
+            else
+                None
+        else
+            None
 
     let getUsernamesAndCommand text =
         let matches = Regex.Matches(text, "@(?!\d{1})(\w|\d)+")
@@ -114,7 +143,7 @@ module Control =
         | _ ->
             let lastMatch = matches |> Seq.maxBy ^ fun el -> el.Index
             let commandText = text.Substring(lastMatch.Index + lastMatch.Length, text.Length - (lastMatch.Index + lastMatch.Length))
-            Command {| Usernames = usernames;  Command = commandText |}
+            Command {| Usernames = usernames;  Command = commandText.Trim() |}
 
     let parse botUsername text =
         match validate botUsername text with

@@ -16,7 +16,7 @@ let ``Usernames and command are extracted from text`` () =
         Assert.Fail()
     | Command data ->
         Assert.Equal<string>(expected, data.Usernames)
-        Assert.Equal<string>("   1test", data.Command)
+        Assert.Equal<string>("1test", data.Command)
 
 [<Fact>]
 let ``Invalid command when there are no usernames`` () =
