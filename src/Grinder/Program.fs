@@ -1,4 +1,6 @@
-﻿open System
+﻿module Grinder
+
+open System
 open Funogram.Api
 open Funogram.Bot
 open Funogram.Types
@@ -13,38 +15,29 @@ open System.Threading
 module Operators =
     let (^) f x = f x
 
-[<RequireQualifiedAccess>]
-module Caching = 
-    open Polly
-    open Microsoft.Extensions.Caching.Memory
-    open Polly.Caching.Memory
-
-    let private cachePolicy = 
-        let provider = new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions()))
-        Policy.CacheAsync(provider, TimeSpan.FromHours(24.0))
-    
-    let cache key computation = 
-        async {
-            let! result = 
-                cachePolicy.ExecuteAsync<'T>(fun _ -> Async.StartAsTask computation
-                                            ,new Context(key))
-                |> Async.AwaitTask
-            return result
-        }
-
 [<AutoOpen>]
 module ApiExtensions =
-    open Polly
-
     type ApiCallResult<'T> = Result<'T, ApiResponseError>
 
-    let callApiWithRetry (call: Async<ApiCallResult<'T>>) =
-        Policy.HandleResult<ApiCallResult<'T>>(function | Error _ -> true | Ok _ -> false)
-              .RetryForeverAsync()
-              .ExecuteAsync(fun _ -> Async.StartAsTask call)
-        |> Async.AwaitTask     
+    let private random = new Random()
 
-    let callApi context = api context.Config >> callApiWithRetry    
+    let rec private retry times (call: Async<ApiCallResult<'T>>) = async {
+        match! call with 
+        | Ok ok -> 
+            return ()
+        | Error e ->
+            printfn "Api call error: %A; ErrorCode: %i" e.Description e.ErrorCode
+            if times <> 0 then
+                let delay = random.Next(0, 3) |> float
+                do! Task.Delay(TimeSpan.FromSeconds(1. + delay)) |> Async.AwaitTask
+                return! retry (times - 1) call
+    }
+
+    let callApi context = api context.Config >> retry 10    
+
+[<RequireQualifiedAccess>]
+module Async =
+    let Unit = async { do () }
 
 [<CLIMutable>]
 type Socks5Configuration = {
@@ -58,65 +51,142 @@ type Socks5Configuration = {
 type BotConfig = {
     Socks5Proxy: Socks5Configuration
     Token: string
-    ChatsToBanIn: string array
+    ChatsToMonitor: string array
     AllowedUsers: string array
 }
 
 type BotSettings = {
-    ChatsToBanIn: string array
+    ChatsToMonitor: string array
     AllowedUsers: string array
 }
 
 type BotMessage = 
     | Message of Message
-    | InlineQuery of InlineQuery
 
 [<RequireQualifiedAccess>]
 module BotMessage =
     let fromUpdate (update: Update) =
-        match update.InlineQuery with
-        | Some query -> InlineQuery query |> Some
-        | None ->
-            match update.Message with
-            | Some message -> Message message |> Some
-            | None -> None
+        match update.Message with
+        | Some message -> 
+            Message message |> Some
+        | None -> 
+            None
+
+type RestrictionLength =
+    | NoRestriction
+    | Forever
+    | Minutes of uint16
+    | Days of uint16
+    | Months of uint16
+    | Complex of {| Minutes: uint16; Days: uint16; Months: uint16; |}
+
+
+
+type MessageToBot =
+    | Command of {| Usernames: string list; Command: string |}
+    | InvalidCommand
+
+[<RequireQualifiedAccess>]
+module Control =
+    open System.Text.RegularExpressions
+
+    type private MessageType = 
+        | CommandForBot of string
+        | Nothing
+
+    let private validate (botUsername: string) (text: string) = 
+        let text = text.Trim()
+        if text.StartsWith(botUsername) then
+            let command = text.Substring(0, botUsername.Length - 1).Trim()
+            CommandForBot command
+        else
+            Nothing
+
+    let getUsernamesAndCommand text =
+        let matches = Regex.Matches(text, "@(?!\d{1})(\w|\d)+")
+        let usernames = 
+            matches
+            |> Seq.map ^ fun m -> m.Value
+            |> List.ofSeq
+        match List.length usernames with
+        | 0 -> 
+            InvalidCommand
+        | _ ->
+            let lastMatch = matches |> Seq.maxBy ^ fun el -> el.Index
+            let commandText = text.Substring(lastMatch.Index + lastMatch.Length, text.Length - (lastMatch.Index + lastMatch.Length))
+            Command {| Usernames = usernames;  Command = commandText |}
+
+    let parse botUsername text =
+        match validate botUsername text with
+        | CommandForBot text -> 
+            match getUsernamesAndCommand text with
+            | Command data ->
+                let minutes = Regex.
+            | InvalidCommand -> ()   
+        | Nothing -> ()
 
 let onUpdate (settings: BotSettings) (context: UpdateContext) =
     let isAllowedUser username =
         settings.AllowedUsers 
         |> Array.contains username
 
+    let isAllowedChat chatUsername =
+        settings.ChatsToMonitor 
+        |> Array.contains chatUsername
+    
+    let restrictUser chat userId until =
+        restrictChatMemberBase (String(chat)) userId until (Some(false)) (Some(false)) (Some(false)) (Some(false))
+
     let handleMessage (message: Message) =
         async {
-            message.From
-            |> Option.bind ^ fun from ->
-                {| Message = message; From = from |}
-                |> Some
-            |> Option.bind ^ fun data ->
-                data.From.Username
-                |> Option.bind ^ fun username ->
-                    if isAllowedUser username then 
-                        {| data with Username = username |}
-                        |> Some
-                    else None
-            |> Option.iter ^ fun data ->
-            
-                deleteMessageByChatName "" data.Message.MessageId
-                |> callApi context
+            return!
+                context.Me.Username
+                |> Option.map ^ fun username ->
+                    {| BotUsername = username |}
+                |> Option.bind ^ fun data ->
+                    message.From
+                    |> Option.map ^ fun from ->
+                        {| data with Message = message; From = from |}
+                |> Option.bind ^ fun data ->
+                    data.From.Username
+                    |> Option.bind ^ fun username ->
+                        if isAllowedUser username then 
+                            {| data with Username = username |}
+                            |> Some
+                        else 
+                            None
+                |> Option.bind ^ fun data ->
+                    data.Message.Chat.Username
+                    |> Option.bind ^ fun username ->
+                        if isAllowedChat username then 
+                            Some data
+                        else 
+                            None
+                |> Option.map ^ fun data ->
+                    async {
+                        let requests = [
+                            yield deleteMessage data.Message.Chat.Id data.Message.MessageId
+                                  |> callApi context
+                            for chat in settings.ChatsToMonitor do
+                                let time = DateTime.UtcNow.AddMinutes(1.) |> Some
+                                yield restrictUser chat data.From.Id time
+                                      |> callApi context
+                        ]
+                        do! Async.Parallel requests |> Async.Ignore
+                    }
+                |> Option.defaultValue Async.Unit
         }
-    
-    let handleInlineQuery (query: InlineQuery) = 
-        ()
 
     async {
-        BotMessage.fromUpdate context.Update
-        |> Option.iter ^ fun botMessage ->
-            match botMessage with
-            | InlineQuery query -> 
-                handleInlineQuery query
-            | Message message -> 
-                do! handleMessage message
-    } |> Async.StartImmediate
+        do! BotMessage.fromUpdate context.Update
+            |> Option.map ^ fun botMessage ->
+                async {
+                    match botMessage with
+                    | Message message -> 
+                        do! handleMessage message
+                }
+            |> Option.defaultValue Async.Unit
+    } |> Async.Start
     
 
 let createHttpClient config =
@@ -135,13 +205,13 @@ let main _ =
         defaultConfig with 
             Token = config.Token
             Client = createHttpClient config.Socks5Proxy
-            AllowedUpdates = ["message"; "inline_query"] |> Seq.ofList |> Some
+            AllowedUpdates = ["message";] |> Seq.ofList |> Some
     }
 
     async {
         printfn "Starting bot"
         let settings = 
-            { ChatsToBanIn = config.ChatsToBanIn
+            { ChatsToMonitor = config.ChatsToMonitor
               AllowedUsers = config.AllowedUsers }
         do! startBot botConfiguration (onUpdate settings) None
             |> Async.StartChild
