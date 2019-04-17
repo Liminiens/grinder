@@ -2,7 +2,7 @@ module Tests
 
 open Xunit
 open Grinder
-open Command
+open Control
 
 module Assert =
     let Fail() = Assert.True(false)
@@ -11,46 +11,68 @@ module Assert =
 [<Fact>]
 let ``Usernames and command are extracted from text`` () =
     let expected = ["@hi"; "@hi1"; "@hi2"]
-    let text = "@hi  @hi1  @hi2   1test"
-    match Command.getUsernamesAndCommand text with
+    let text = "@hi  @hi1  @hi2 ban  1test"
+    match Control.getUsernamesAndCommand text with
     | InvalidCommand -> 
         Assert.Fail()
     | Command data ->
         Assert.Equal<string>(expected, data.Usernames)
-        Assert.Equal<string>("1test", data.Command)
-
+        match data.Text with
+        | Restrict command ->
+            Assert.Equal<string>("1test", command)
+        | _ ->
+            Assert.Fail()
+            
+[<Fact>]
+let ``CommandType.parse returns restrict command`` () =
+    let text = "ban text 123"
+    match CommandType.parse text with
+    | (Some(Restrict command)) ->
+        Assert.Equal<string>("text 123", command)
+    | _ ->
+        Assert.Fail()
+            
+[<Fact>]
+let ``CommandType.parse returns unrestrict command`` () =
+    let text = "unban some text 123"
+    match CommandType.parse text with
+    | (Some(UnRestrict command)) ->
+        Assert.Equal<string>("some text 123", command)
+    | _ ->
+        Assert.Fail()
+        
 [<Fact>]
 let ``Invalid command when there are no usernames`` () =
     let text = "test"
-    match Command.getUsernamesAndCommand text with
+    match Control.getUsernamesAndCommand text with
     | InvalidCommand -> 
         Assert.Success()
     | Command data ->
         Assert.Fail()
         
 [<Fact>]
-let ``getMinutes returns minutes from text`` () =
+let ``Minutes.Parse returns minutes from text`` () =
     let text = "10 minutes  20 days 1 month"
-    match Command.getMinutes text with
-    | Some(Minutes(value)) -> 
-        Assert.Equal(10, value)
+    match Minutes.Parse text with
+    | Some(minutes) -> 
+        Assert.Equal(10, minutes.Value)
     | None ->
         Assert.Fail()
         
 [<Fact>]
-let ``getDays returns minutes from text`` () =
+let ``Days.Parse returns days from text`` () =
     let text = "10 minutes  20 days 1 month"
-    match Command.getDays text with
-    | Some(Days(value)) -> 
-        Assert.Equal(20, value)
+    match Days.Parse text with
+    | Some(days) -> 
+        Assert.Equal(20, days.Value)
     | None ->
         Assert.Fail()
         
 [<Fact>]
-let ``getMonths returns minutes from text`` () =
+let ``Months.Parse returns months from text`` () =
     let text = "10 minutes  20 days 1 month"
-    match Command.getMonths text with
-    | Some(Months(value)) -> 
-        Assert.Equal(1, value)
+    match Months.Parse text with
+    | Some(months) -> 
+        Assert.Equal(1, months.Value)
     | None ->
         Assert.Fail()

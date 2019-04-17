@@ -1,136 +1,118 @@
-﻿module Grinder
+﻿namespace Grinder
 
-open System
+open Grinder
+open Grinder.Funogram
 open Funogram.Api
 open Funogram.Bot
 open Funogram.Types
-open System.Net.Http
-open MihaZupan
-open Newtonsoft.Json
-open System.IO
-open System.Threading.Tasks
-open System.Threading
-
-[<AutoOpen>]
-module Operators =
-    let (^) f x = f x
-
-[<AutoOpen>]
-module ApiExtensions =
-    type ApiCallResult<'T> = Result<'T, ApiResponseError>
-
-    let private jitter = new Random()
-
-    let rec private retry times (call: Async<ApiCallResult<'T>>) = async {
-        match! call with 
-        | Ok ok -> 
-            return Ok ok
-        | Error e ->
-            printfn "Api call error: %A; ErrorCode: %i" e.Description e.ErrorCode
-            if times <> 0 then
-                let delay = jitter.Next(0, 3) |> float
-                do! Task.Delay(TimeSpan.FromSeconds(1. + delay)) |> Async.AwaitTask
-                return! retry (times - 1) call
-            else
-                return Error e
-    }
-
-    let callApiWithRetry context times = api context.Config >> retry times  
-
-[<RequireQualifiedAccess>]
-module Async =
-    let Unit = async { do () }
-
-[<CLIMutable>]
-type Socks5Configuration = {
-    Hostname: string
-    Port: int
-    Username: string
-    Password: string
-}
-
-[<CLIMutable>]
-type BotConfig = {
-    Socks5Proxy: Socks5Configuration
-    Token: string
-    ChatsToMonitor: string array
-    AllowedUsers: string array
-}
+open System
 
 type BotSettings = {
     ChatsToMonitor: string array
     AllowedUsers: string array
+    Channel: int64
 }
-
-type BotMessage = 
-    | Message of Message
-
-[<RequireQualifiedAccess>]
-module BotMessage =
-    let fromUpdate (update: Update) =
-        match update.Message with
-        | Some message -> 
-            Message message |> Some
-        | None -> 
-            None
-
-type MessageToBot =
-    | Command of {| Usernames: string list; Command: string |}
-    | InvalidCommand
     
-module Command =
-    open System.Text.RegularExpressions
+module Control =
+    open FSharp.Text.RegexProvider
+    
+    type CommandType =
+        | Restrict of string
+        | UnRestrict of string
+    
+    module CommandType =
+        let [<Literal>] banText = "ban"
+        let [<Literal>] unbanText = "unban"
+            
+        let parse (text: string) =
+            if text.StartsWith(banText) then
+                text.Substring(banText.Length, text.Length - banText.Length).Trim()
+                |> Restrict
+                |> Some
+            elif text.StartsWith(unbanText) then
+                text.Substring(unbanText.Length, text.Length - unbanText.Length).Trim()
+                |> UnRestrict
+                |> Some
+            else
+                None
+    
+    type Command = {
+        Usernames: string list
+        Text: CommandType
+    }
 
-    type MessageType = 
-        | CommandForBot of string
-        | Nothing
-
+    type MessageToBotValidationResult = 
+        | ValidMessage of string
+        | InvalidMessage
+            
+    type CommandParsingResult =
+        | Command of Command
+        | InvalidCommand
+    
     let validate (botUsername: string) (text: string) = 
         let text = text.Trim()
         if text.StartsWith(botUsername) then
-            let command = text.Substring(0, botUsername.Length - 1).Trim()
-            CommandForBot command
+            let message = text.Substring(0, botUsername.Length - 1).Trim()
+            ValidMessage message
         else
-            Nothing
+            InvalidMessage
    
-    type Minutes = Minutes of int32
+    type MinutesRegex = Regex< "(?<value>\d+)\s+min(s)?" >
+    
+    type DaysRegex = Regex< "(?<value>\d+)\s+day(s)?" >
+    
+    type MonthsRegex = Regex< "(?<value>\d+)\s+month(s)?" >
 
-    type Months = Months of int32
+    type Minutes =
+        private Minutes of int32
+            static member Parse(text) =
+                let result = MinutesRegex().TypedMatch(text)
+                if result.value.Success then
+                    let value = int32 result.value.Value
+                    if value > 0 then 
+                        value |> Minutes |> Some
+                    else
+                        None
+                else
+                    None
+            
+            member __.Value =
+                let (Minutes value) = __
+                value
 
-    type Days = Days of int32
-    
-    let getMinutes text = 
-        let result = Regex.Match(text, "(\d+)\s+min(s)?")
-        if result.Success then
-            let value = int32 result.Groups.[0].Value
-            if value > 0 then 
-                value |> Minutes |> Some
-            else
-                None
-        else
-            None
-    
-    let getDays text = 
-        let result = Regex.Match(text, "(\d+)\s+day(s)?")
-        if result.Success then
-            let value = int32 result.Groups.[0].Value
-            if value > 0 then 
-                value |> Days |> Some
-            else
-                None
-        else
-            None
-    
-    let getMonths text = 
-        let result = Regex.Match(text, "(\d+)\s+month(s)?")
-        if result.Success then
-            let value = int32 result.Groups.[0].Value
-            if value > 0 then 
-                value |> Months |> Some
-            else
-                None
-        else
-            None
+    type Days =
+        private Days of int32
+            static member Parse(text) =
+                let result = DaysRegex().TypedMatch(text)
+                if result.value.Success then
+                    let value = int32 result.value.Value
+                    if value > 0 then 
+                        value |> Days |> Some
+                    else
+                        None
+                else
+                    None
+            
+            member __.Value =
+                let (Days value) = __
+                value
+
+    type Months =
+        private Months of int32
+            static member Parse(text) =
+                let result = MonthsRegex().TypedMatch(text)
+                if result.value.Success then
+                    let value = int32 result.value.Value
+                    if value > 0 then 
+                        value |> Months |> Some
+                    else
+                        None
+                else
+                    None
+            
+            member __.Value =
+                let (Months value) = __
+                value
 
     let getUsernamesAndCommand text =
         let matches = Regex.Matches(text, "@(\w|\d)+")
@@ -143,126 +125,171 @@ module Command =
             InvalidCommand
         | _ ->
             let lastMatch = matches |> Seq.maxBy ^ fun el -> el.Index
-            let commandText = text.Substring(lastMatch.Index + lastMatch.Length, text.Length - (lastMatch.Index + lastMatch.Length))
-            Command {| Usernames = usernames;  Command = commandText.Trim() |}
+            let commandText =
+                text.Substring(lastMatch.Index + lastMatch.Length, text.Length - (lastMatch.Index + lastMatch.Length))
+                    .Trim()
+            match CommandType.parse commandText with
+            | Some(command) ->
+                Command { Usernames = usernames
+                          Text = command }
+            | None ->
+                InvalidCommand
 
     let parse botUsername text =
         match validate botUsername text with
-        | CommandForBot text -> 
+        | ValidMessage text -> 
             match getUsernamesAndCommand text with
             | Command data ->
+                let minutes = Minutes.Parse text
+                let days = Days.Parse text
+                let months = Months.Parse text
                 ()
             | InvalidCommand -> ()   
-        | Nothing -> ()
+        | InvalidMessage -> ()
 
-let onUpdate (settings: BotSettings) (context: UpdateContext) =
-    let isAllowedUser username =
-        settings.AllowedUsers 
-        |> Array.contains username
+module Processing =
+    type BotMessage = 
+        | Message of Message
 
-    let isAllowedChat chatUsername =
-        settings.ChatsToMonitor 
-        |> Array.contains chatUsername
+    [<RequireQualifiedAccess>]
+    module BotMessage =
+        let fromUpdate (update: Update) =
+            update.Message
+            |> Option.bind ^ fun message ->
+                Message message |> Some
     
-    let restrictUser context chat userId until =
-        async {
-            let! user = 
-                getChatMemberByChatName chat userId
-                |> callApiWithRetry context 4
-            match user with
-            | Ok _ ->
-                do! 
-                    restrictChatMemberBase (String(chat)) userId (Some until) (Some false) (Some false) (Some false) (Some false)
-                    |> callApiWithRetry context 4
-                    |> Async.Ignore      
-                return sprintf "Restricted in %s" chat
-            | Error _ ->
-                return sprintf "Not restricted in %s" chat
-        }
+    let onUpdate (settings: BotSettings) (context: UpdateContext) =
+        let isAllowedUser username =
+            settings.AllowedUsers 
+            |> Array.contains username
 
-    let handleMessage (message: Message) =
+        let isAllowedChat chatUsername =
+            settings.ChatsToMonitor 
+            |> Array.contains chatUsername
+        
+        let restrictUser context chat userId until =
+            async {
+                let! user = 
+                    getChatMemberByChatName chat userId
+                    |> callApiWithRetry context 4
+                match user with
+                | Ok _ ->
+                    do! 
+                        restrictChatMemberBase (Funogram.Types.String(chat)) userId (Some until) (Some false) (Some false) (Some false) (Some false)
+                        |> callApiWithRetry context 4
+                        |> Async.Ignore      
+                    return sprintf "Restricted in %s" chat
+                | Error _ ->
+                    return sprintf "Not restricted in %s" chat
+            }
+        
+        let handleMessage (message: Message) =
+            async {
+                return!
+                    context.Me.Username
+                    |> Option.bind ^ fun botUsername ->
+                        message.From
+                        |> Option.map ^ fun from ->
+                            (botUsername, message, from)
+                    |> Option.bind ^ fun (botUsername, message, from) ->
+                        from.Username
+                        |> Option.bind ^ fun username ->
+                            if isAllowedUser username then 
+                                Some (botUsername, message, from, username)
+                            else 
+                                None
+                    |> Option.bind ^ fun (botUsername, message, from, username) ->
+                        message.Chat.Username
+                        |> Option.bind ^ fun username ->
+                            if isAllowedChat username then 
+                                Some (botUsername, message, from, username)
+                            else 
+                                None
+                    |> Option.map ^ fun (botUsername, message, from, username) ->
+                        async {
+                            do! deleteMessage message.Chat.Id message.MessageId
+                                |> callApiWithRetry context 4
+                                |> Async.Ignore
+                            let requests = [
+                                for chat in settings.ChatsToMonitor do
+                                    let time = DateTime.UtcNow.AddMinutes(1.)
+                                    yield restrictUser context chat from.Id time
+                            ]
+                            let! text = Async.Parallel requests
+                            ()
+                        }
+                    |> Option.defaultValue Async.Unit
+            }
+
         async {
-            return!
-                context.Me.Username
-                |> Option.map ^ fun username ->
-                    {| BotUsername = username |}
-                |> Option.bind ^ fun data ->
-                    message.From
-                    |> Option.map ^ fun from ->
-                        {| data with Message = message; From = from |}
-                |> Option.bind ^ fun data ->
-                    data.From.Username
-                    |> Option.bind ^ fun username ->
-                        if isAllowedUser username then 
-                            {| data with Username = username |}
-                            |> Some
-                        else 
-                            None
-                |> Option.bind ^ fun data ->
-                    data.Message.Chat.Username
-                    |> Option.bind ^ fun username ->
-                        if isAllowedChat username then 
-                            Some data
-                        else 
-                            None
-                |> Option.map ^ fun data ->
+            do! BotMessage.fromUpdate context.Update
+                |> Option.map ^ fun botMessage ->
                     async {
-                        do! deleteMessage data.Message.Chat.Id data.Message.MessageId
-                            |> callApiWithRetry context 4
-                            |> Async.Ignore
-                        let requests = [
-                            for chat in settings.ChatsToMonitor do
-                                let time = DateTime.UtcNow.AddMinutes(1.)
-                                yield restrictUser context chat data.From.Id time
-                        ]
-                        let! text = Async.Parallel requests
-                        ()
+                        match botMessage with
+                        | Message message -> 
+                            do! handleMessage message
                     }
                 |> Option.defaultValue Async.Unit
-        }
+        } |> Async.Start
 
-    async {
-        do! BotMessage.fromUpdate context.Update
-            |> Option.map ^ fun botMessage ->
-                async {
-                    match botMessage with
-                    | Message message -> 
-                        do! handleMessage message
-                }
-            |> Option.defaultValue Async.Unit
-    } |> Async.Start
+
+module Program =
+    open Processing
+    open System.Threading.Tasks
+    open System.Threading  
+    open System.Net.Http
+    open System.IO
+    open MihaZupan
+    open Newtonsoft.Json
     
-
-let createHttpClient config =
-    let messageHandler = new HttpClientHandler()
-    messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
-    messageHandler.UseProxy <- true
-    new HttpClient(messageHandler)
-
-[<EntryPoint>]
-let main _ =
-    let config =
-        File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "bot_config.json"))
-        |> JsonConvert.DeserializeObject<BotConfig>
-
-    let botConfiguration = { 
-        defaultConfig with 
-            Token = config.Token
-            Client = createHttpClient config.Socks5Proxy
-            AllowedUpdates = ["message";] |> Seq.ofList |> Some
+    [<CLIMutable>]
+    type Socks5Configuration = {
+        Hostname: string
+        Port: int
+        Username: string
+        Password: string
     }
 
-    async {
-        printfn "Starting bot"
-        let settings = 
-            { ChatsToMonitor = config.ChatsToMonitor
-              AllowedUsers = config.AllowedUsers }
-        do! startBot botConfiguration (onUpdate settings) None
-            |> Async.StartChild
-            |> Async.Ignore
-        printfn "Bot started"
-        do! Task.Delay(Timeout.InfiniteTimeSpan) |> Async.AwaitTask
-    } |> Async.RunSynchronously
+    [<CLIMutable>]
+    type BotConfig = {
+        Socks5Proxy: Socks5Configuration
+        Token: string
+        ChatsToMonitor: string array
+        AllowedUsers: string array
+        Channel: int64
+    }
     
-    printfn "Bot exited"
-    0 // return an integer exit code
+    let createHttpClient config =
+        let messageHandler = new HttpClientHandler()
+        messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
+        messageHandler.UseProxy <- true
+        new HttpClient(messageHandler)
+    
+    [<EntryPoint>]
+    let main _ =
+        let config =
+            File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "bot_config.json"))
+            |> JsonConvert.DeserializeObject<BotConfig>
+
+        let botConfiguration = { 
+            defaultConfig with 
+                Token = config.Token
+                Client = createHttpClient config.Socks5Proxy
+                AllowedUpdates = ["message"] |> Seq.ofList |> Some
+        }
+
+        async {
+            printfn "Starting bot"
+            let settings = 
+                { ChatsToMonitor = config.ChatsToMonitor
+                  AllowedUsers = config.AllowedUsers
+                  Channel = config.Channel }
+            do! startBot botConfiguration (onUpdate settings) None
+                |> Async.StartChild
+                |> Async.Ignore
+            printfn "Bot started"
+            do! Task.Delay(Timeout.InfiniteTimeSpan) |> Async.AwaitTask
+        } |> Async.RunSynchronously
+        
+        printfn "Bot exited"
+        0 // return an integer exit code
