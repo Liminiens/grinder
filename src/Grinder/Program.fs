@@ -14,23 +14,48 @@ type BotSettings = {
 }
 
 module Processing =
+    open Grinder.Control
+    
     type BotMessage = 
         | Message of Message
         
     let restrictUser context chat userId until =
+        async {
+            let! userResponse =
+                getChatMemberByChatName chat userId
+                |> callApiWithRetry context 4
+            match userResponse with
+            | Ok _ ->
+                do! restrictChatMemberBase (Funogram.Types.String(chat)) userId (Some until) (Some false) (Some false) (Some false) (Some false)
+                    |> callApiWithRetry context 4
+                    |> Async.Ignore
+                let dateText = until.ToString("yyyy-MM-dd")
+                return sprintf "Banned in %s until %s UTC" chat dateText
+            | Error _ ->
+                return sprintf "Not banned\found in %s" chat
+        }
+        
+    let unrestrictUser context chat userId until =
         async {
             let! userResponse = 
                 getChatMemberByChatName chat userId
                 |> callApiWithRetry context 4
             match userResponse with
             | Ok _ ->
-                do! 
-                    restrictChatMemberBase (Funogram.Types.String(chat)) userId (Some until) (Some false) (Some false) (Some false) (Some false)
+                let time = DateTime.UtcNow.AddMinutes(float 1) |> Some
+                do! restrictChatMemberBase (Funogram.Types.String(chat)) userId time (Some true) (Some true) (Some true) (Some true)
                     |> callApiWithRetry context 4
                     |> Async.Ignore      
-                return sprintf "Restricted in %s" chat
+                return sprintf "Unbanned in %s" chat
             | Error _ ->
-                return sprintf "Not restricted in %s" chat
+                return sprintf "Not unbanned\found in %s" chat
+        }
+        
+    let sendMessage chatId context text =
+        async {
+            do! sendMessageBase (ChatId.Int chatId) text None None None None None
+                |> callApiWithRetry context 4
+                |> Async.Ignore  
         }
             
     [<RequireQualifiedAccess>]
@@ -48,6 +73,8 @@ module Processing =
         let isAllowedChat chatUsername =
             settings.ChatsToMonitor 
             |> Array.contains chatUsername
+        
+        let sendMessageToChannel = sendMessage settings.Channel context
         
         let handleMessage (message: Message) =
             async {
@@ -69,19 +96,31 @@ module Processing =
                             else 
                                 None
                     |> Option.map ^ fun (botUsername, message, from, username) ->
-                        async {
-                            do! deleteMessage message.Chat.Id message.MessageId
-                                |> callApiWithRetry context 4
-                                |> Async.Ignore
-                            if isAllowedUser username then
-                                let requests = [
-                                    for chat in settings.ChatsToMonitor do
-                                        let time = DateTime.UtcNow.AddMinutes(1.)
-                                        yield restrictUser context chat from.Id time
-                                ]
-                                let! text = Async.Parallel requests
-                                ()
-                        }
+                        message.Text
+                        |> Option.map ^ fun text ->
+                            async {
+                                do! deleteMessage message.Chat.Id message.MessageId
+                                    |> callApiWithRetry context 4
+                                    |> Async.Ignore
+                                if isAllowedUser username then
+                                    let parsedMessage = Control.parse botUsername text
+                                    let requests = [
+                                        for chat in settings.ChatsToMonitor do
+                                            match parsedMessage with
+                                            | Ban(UsernameList usernames, time) ->
+                                                yield!
+                                                    usernames
+                                                    |> Seq.map ^ fun u ->
+                                                        restrictUser context chat u time
+                                            | Unban username ->
+                                                yield unrestrictUser
+                                    ]
+                                    let! text = Async.Parallel requests
+                                    do! String.Join('\n', text)
+                                        |> sprintf "Username: %s\n\n%s" username
+                                        |> sendMessageToChannel
+                            }
+                        |> Option.defaultValue Async.Unit
                     |> Option.defaultValue Async.Unit
             }
 
