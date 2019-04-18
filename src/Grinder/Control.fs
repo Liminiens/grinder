@@ -5,13 +5,15 @@ open System
 module Control =
     open FSharp.Text.RegexProvider
     
-    type CommandTextType =
+    type CommandText =
         | BanCommandText of string
         | UnbanCommandText of string
         
+    type UsernameList = UsernameList of string list
+    
     type Command =
-        | Ban of DateTime
-        | Unban of DateTime
+        | Ban of  UsernameList * DateTime
+        | Unban of UsernameList
         | IgnoreCommand
         
     module CommandType =
@@ -31,8 +33,8 @@ module Control =
                 None
     
     type ParsedCommand = {
-        Usernames: string list
-        Text: CommandTextType
+        Usernames: UsernameList
+        Text: CommandText
     }
 
     type MessageToBotValidationResult = 
@@ -46,12 +48,12 @@ module Control =
     let validate (botUsername: string) (text: string) = 
         let text = text.Trim()
         if text.StartsWith(botUsername) then
-            let message = text.Substring(0, botUsername.Length - 1).Trim()
+            let message = text.Substring(botUsername.Length, text.Length - botUsername.Length).Trim()
             ValidMessage message
         else
             InvalidMessage
    
-    type MinutesRegex = Regex< "(?<value>\d+)\s+min(s)?" >
+    type MinutesRegex = Regex< "(?<value>\d+)\s+min(s|utes)?" >
     
     type DaysRegex = Regex< "(?<value>\d+)\s+day(s)?" >
     
@@ -107,7 +109,32 @@ module Control =
             member __.Value =
                 let (Months value) = __
                 value
-
+    
+    type Fraction =
+        | Minutes of int32
+        | Days of int32
+        | Months of int32
+    
+    type Duration() =
+        let mutable value = Unchecked.defaultof<DateTime>
+        
+        member __.IsSet() =
+            value <> Unchecked.defaultof<DateTime>
+        
+        member __.GetValue() =
+            value
+        
+        member __.Add(fraction) =
+            if not <| __.IsSet() then
+                value <- DateTime.UtcNow
+            match fraction with
+            | Minutes mins ->
+                value <- value.AddMinutes(float mins)
+            | Days days ->
+                value <- value.AddDays(float days)
+            | Months months ->
+                value <- value.AddMonths(months)
+    
     let getUsernamesAndCommand text =
         let matches = Regex.Matches(text, "@(\w|\d)+")
         let usernames = 
@@ -124,7 +151,7 @@ module Control =
                     .Trim()
             match CommandType.parse commandText with
             | Some(command) ->
-                Command { Usernames = usernames
+                Command { Usernames = UsernameList usernames
                           Text = command }
             | None ->
                 InvalidCommand
@@ -135,21 +162,27 @@ module Control =
             match getUsernamesAndCommand text with
             | Command data ->
                 match data.Text with
-                | BanCommandText commantText ->
-                    match commantText with
+                | BanCommandText commandText ->
+                    match commandText with
                     | ""
                     | "forever" ->
-                        DateTime.UtcNow.AddMonths(13)
-                        |> Ban
-                    | other ->
-                        let mutable now = DateTime.UtcNow
-                        let minutes = Minutes.Parse other
-                        let days = Days.Parse other
-                        let months = Months.Parse other
-                        if [minutes; days; months] then
+                        Ban (data.Usernames, DateTime.UtcNow.AddMonths(13))
+                    | time ->
+                        let duration = Duration()
+                        Minutes.Parse time
+                        |> Option.iter ^ fun v ->
+                            let value = if v.Value < 5 then 5 else v.Value
+                            duration.Add(Minutes value)
+                        Days.Parse time
+                        |> Option.iter ^ fun v -> duration.Add(Days v.Value)
+                        Months.Parse time
+                        |> Option.iter ^ fun v -> duration.Add(Months v.Value)
+                        if duration.IsSet() then
+                            Ban (data.Usernames, duration.GetValue())
+                        else
                             IgnoreCommand
-                | UnbanCommandText commantText ->
-                    IgnoreCommand
+                | UnbanCommandText _ ->
+                    Unban data.Usernames
             | InvalidCommand ->
                 IgnoreCommand  
         | InvalidMessage ->

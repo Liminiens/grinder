@@ -19,10 +19,10 @@ module Processing =
         
     let restrictUser context chat userId until =
         async {
-            let! user = 
+            let! userResponse = 
                 getChatMemberByChatName chat userId
                 |> callApiWithRetry context 4
-            match user with
+            match userResponse with
             | Ok _ ->
                 do! 
                     restrictChatMemberBase (Funogram.Types.String(chat)) userId (Some until) (Some false) (Some false) (Some false) (Some false)

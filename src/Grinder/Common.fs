@@ -6,4 +6,4 @@ module Сommon =
 
 [<RequireQualifiedAccess>]
 module Async =
-    let Unit = async { () }   
+    let Unit = async { () }
