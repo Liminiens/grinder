@@ -18,7 +18,7 @@ let ``Usernames and command are extracted from text`` () =
     | Command data ->
         Assert.Equal<string>(expected, data.Usernames)
         match data.Text with
-        | Restrict command ->
+        | BanCommandText command ->
             Assert.Equal<string>("1test", command)
         | _ ->
             Assert.Fail()
@@ -27,7 +27,7 @@ let ``Usernames and command are extracted from text`` () =
 let ``CommandType.parse returns restrict command`` () =
     let text = "ban text 123"
     match CommandType.parse text with
-    | (Some(Restrict command)) ->
+    | (Some(BanCommandText command)) ->
         Assert.Equal<string>("text 123", command)
     | _ ->
         Assert.Fail()
@@ -36,7 +36,7 @@ let ``CommandType.parse returns restrict command`` () =
 let ``CommandType.parse returns unrestrict command`` () =
     let text = "unban some text 123"
     match CommandType.parse text with
-    | (Some(UnRestrict command)) ->
+    | (Some(UnbanCommandText command)) ->
         Assert.Equal<string>("some text 123", command)
     | _ ->
         Assert.Fail()
