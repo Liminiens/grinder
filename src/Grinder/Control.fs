@@ -58,6 +58,8 @@ module Control =
     type DaysRegex = Regex< "(?<value>\d+)\s+day(s)?" >
     
     type MonthsRegex = Regex< "(?<value>\d+)\s+month(s)?" >
+    
+    type NegativeNumberRegex = Regex< "-\d+" >
 
     type Minutes =
         private Minutes of int32
@@ -156,6 +158,24 @@ module Control =
             | None ->
                 InvalidCommand
 
+    let parseBanCommand usernames time =
+        if not <| NegativeNumberRegex().TypedMatch(time).Success then
+            let duration = Duration()
+            Minutes.Parse time
+            |> Option.iter ^ fun v ->
+                let value = if v.Value < 5 then 5 else v.Value
+                duration.Add(Minutes value)
+            Days.Parse time
+            |> Option.iter ^ fun v -> duration.Add(Days v.Value)
+            Months.Parse time
+            |> Option.iter ^ fun v -> duration.Add(Months v.Value)
+            if duration.IsSet() then
+                Ban (usernames, duration.GetValue())
+            else
+                IgnoreCommand
+        else
+            IgnoreCommand
+    
     let parse botUsername text =
         match validate botUsername text with
         | ValidMessage text -> 
@@ -168,19 +188,7 @@ module Control =
                     | "forever" ->
                         Ban (data.Usernames, DateTime.UtcNow.AddMonths(13))
                     | time ->
-                        let duration = Duration()
-                        Minutes.Parse time
-                        |> Option.iter ^ fun v ->
-                            let value = if v.Value < 5 then 5 else v.Value
-                            duration.Add(Minutes value)
-                        Days.Parse time
-                        |> Option.iter ^ fun v -> duration.Add(Days v.Value)
-                        Months.Parse time
-                        |> Option.iter ^ fun v -> duration.Add(Months v.Value)
-                        if duration.IsSet() then
-                            Ban (data.Usernames, duration.GetValue())
-                        else
-                            IgnoreCommand
+                        parseBanCommand data.Usernames time
                 | UnbanCommandText _ ->
                     Unban data.Usernames
             | InvalidCommand ->

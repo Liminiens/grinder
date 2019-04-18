@@ -134,7 +134,32 @@ module ControlTests =
             Assert.Equal(now.Year, until.Year)
         | _ ->
             Assert.Fail()
-    
+            
+    [<Fact>]
+    let ``Parse returns correct command for ban when duration is less than 5 minutes``=
+        let bot = "@bot"
+        let command = sprintf "%s @user @user1 ban 1 min" bot
+        match Control.parse bot command with
+        | Ban(UsernameList(users), until) ->
+            Assert.Equal<string>(["@user";"@user1"], users)
+            
+            let now = DateTime.UtcNow.AddMinutes(float 5)
+            Assert.Equal(now.Minute, until.Minute)
+        | _ ->
+            Assert.Fail()
+            
+    [<Theory>]
+    [<InlineData("@bot @user @user1 ban -1 day 1 month")>]
+    [<InlineData("@bot @user @user1 ban -10 month 1 day")>]
+    [<InlineData("@bot @user @user1 ban 1 day -1 minutes")>]
+    let ``Parse ignores ban command with negative numbers`` (command: string)=
+        let bot = "@bot"
+        match Control.parse bot command with
+        | IgnoreCommand ->
+            Assert.Success()
+        | _ ->
+            Assert.Fail()
+            
     [<Theory>]
     [<InlineData("@bot @user @user1 ban        ")>]
     [<InlineData("@bot @user @user1 ban")>]
