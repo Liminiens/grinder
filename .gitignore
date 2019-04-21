@@ -260,3 +260,4 @@ paket-files/
 __pycache__/
 *.pyc
 /src/Grinder/bot_config.json
+**/tdlib/*
