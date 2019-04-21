@@ -170,6 +170,7 @@ let main argv =
                 not <| String.IsNullOrWhiteSpace(user.Username)
             |> AsyncSeq.map ^ fun user ->
                 { UserId = user.Id; Username = user.Username }
+            |> AsyncSeq.distinctUntilChanged
             |> AsyncSeq.toListAsync
             
         do
