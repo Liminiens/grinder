@@ -1,5 +1,7 @@
 ﻿open FSharp.Control
 open FSharp.Control.Tasks.V2
+open Newtonsoft.Json
+open System.IO
 open System
 open System.Threading
 open System.Threading.Tasks
@@ -144,7 +146,7 @@ let main argv =
             dialer.ExecuteAsync(new TdApi.GetChats(Limit = 200, OffsetOrder = Int64.MaxValue))
             |> Async.AwaitTask
         
-        let! pipeline =
+        let! users =
             chats.ChatIds
             |> AsyncSeq.ofSeq
             |> AsyncSeq.mapTask ^ fun chatId -> task {
@@ -170,6 +172,13 @@ let main argv =
                 { UserId = user.Id; Username = user.Username }
             |> AsyncSeq.toListAsync
             
+        do
+            use stream =
+                let file =
+                    Path.Combine(Directory.GetCurrentDirectory(), sprintf "%s.json" (Guid.NewGuid().ToString()))
+                    |> File.Create
+                new StreamWriter(file)
+            users |> JsonConvert.SerializeObject |> stream.Write  
         do! Async.Sleep(-1)
     } |> Async.RunSynchronously
     0 // return an integer exit code
