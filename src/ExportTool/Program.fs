@@ -173,13 +173,11 @@ let main argv =
             |> AsyncSeq.distinctUntilChanged
             |> AsyncSeq.toListAsync
             
-        do
-            use stream =
-                let file =
-                    Path.Combine(Directory.GetCurrentDirectory(), sprintf "%s.json" (Guid.NewGuid().ToString()))
-                    |> File.Create
-                new StreamWriter(file)
-            users |> JsonConvert.SerializeObject |> stream.Write  
-        do! Async.Sleep(-1)
+        use stream =
+            let file =
+                Path.Combine(Directory.GetCurrentDirectory(), sprintf "%s.json" (Guid.NewGuid().ToString()))
+                |> File.Create
+            new StreamWriter(file)
+        users |> JsonConvert.SerializeObject |> stream.Write  
     } |> Async.RunSynchronously
     0 // return an integer exit code
