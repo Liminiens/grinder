@@ -9,6 +9,10 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Grinder.Tests", "tests\Grin
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ExportTool", "src\ExportTool\ExportTool.fsproj", "{664FA88F-E8E3-462B-A258-297B895969C0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grinder.DataAccess", "src\Grinder.DataAccess\Grinder.DataAccess.csproj", "{043CEA3D-D082-42F7-BA66-7ED3395548C3}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Grinder.Common", "src\Grinder.Common\Grinder.Common.fsproj", "{13E2DB48-FA8E-48A1-AD53-DA81EBE63A09}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{664FA88F-E8E3-462B-A258-297B895969C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{664FA88F-E8E3-462B-A258-297B895969C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{664FA88F-E8E3-462B-A258-297B895969C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{043CEA3D-D082-42F7-BA66-7ED3395548C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{043CEA3D-D082-42F7-BA66-7ED3395548C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{043CEA3D-D082-42F7-BA66-7ED3395548C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{043CEA3D-D082-42F7-BA66-7ED3395548C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13E2DB48-FA8E-48A1-AD53-DA81EBE63A09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13E2DB48-FA8E-48A1-AD53-DA81EBE63A09}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13E2DB48-FA8E-48A1-AD53-DA81EBE63A09}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13E2DB48-FA8E-48A1-AD53-DA81EBE63A09}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -113,7 +113,7 @@ module Processing =
                                                     |> Seq.map ^ fun u ->
                                                         restrictUser context chat u time
                                             | Unban username ->
-                                                yield unrestrictUser
+                                                ()
                                     ]
                                     let! text = Async.Parallel requests
                                     do! String.Join('\n', text)

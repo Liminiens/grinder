@@ -1,4 +1,5 @@
-﻿open FSharp.Control
+﻿open Grinder
+open FSharp.Control
 open FSharp.Control.Tasks.V2
 open Newtonsoft.Json
 open System.IO
@@ -6,10 +7,6 @@ open System
 open System.Threading
 open System.Threading.Tasks
 open TdLib
-
-let inline (^) f x = f x
-
-let inline retype (x: 'a) : 'b = (# "" x : 'b #)
 
 [<RequireQualifiedAccess>]
 module Observable =
@@ -38,10 +35,6 @@ module AsyncSeq =
         aseq
         |> AsyncSeq.mapAsyncParallel ^ fun x ->
             fn x |> Async.AwaitTask
-        
-[<RequireQualifiedAccess>]
-module Task =
-    let inline Ignore (t: Task<_>) = t :> Task
     
 let updateAuthorizationState (dialer: Dialer) (authLock: AutoResetEvent) (state: TdApi.Update.UpdateAuthorizationState) =
     task {
