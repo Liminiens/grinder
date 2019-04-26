@@ -13,9 +13,9 @@ type FindUserIdByUsernameResult =
         
 [<RequireQualifiedAccess>]
 module Datastore =    
-    let addUsers (users: User list) =
+    let upsertUsers (users: User list) =
         use context = new GrinderContext()
-        context.AddRange(users)
+        context.UpdateRange(users)
         context.SaveChanges() |> ignore
     
     let findUserIdByUsername username =
