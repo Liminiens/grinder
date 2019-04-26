@@ -21,18 +21,20 @@ namespace Grinder.DataAccess.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd();
 
-                    b.Property<DateTime?>("BannedUntil");
+                    b.Property<DateTimeOffset?>("BannedUntil");
 
-                    b.Property<int>("UserId");
+                    b.Property<long>("UserId");
 
                     b.Property<string>("Username")
                         .IsRequired();
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
-                    b.HasIndex("Username");
+                    b.HasIndex("Username")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });

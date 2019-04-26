@@ -10,11 +10,11 @@ namespace Grinder.DataAccess
         public int Id { get; set; }
 
         [Required]
-        public int UserId { get; set; }
+        public long UserId { get; set; }
 
         [Required]
         public string Username { get; set; }
 
-        public DateTime? BannedUntil { get; set; }
+        public DateTimeOffset? BannedUntil { get; set; }
     }
 }

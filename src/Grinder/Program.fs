@@ -19,20 +19,18 @@ module Processing =
     type BotMessage = 
         | Message of Message
         
-    let restrictUser context chat userId until =
+    let restrictUser context chat username until =
         async {
-            let! userResponse =
-                getChatMemberByChatName chat userId
-                |> callApiWithRetry context 4
-            match userResponse with
-            | Ok _ ->
+            let findUserResult = Datastore.findUserIdByUsername username
+            match findUserResult with
+            | UserIdFound userId ->
                 do! restrictChatMemberBase (Funogram.Types.String(chat)) userId (Some until) (Some false) (Some false) (Some false) (Some false)
                     |> callApiWithDefaultRetry context
                     |> Async.Ignore
                 let dateText = until.ToString("yyyy-MM-dd")
                 return sprintf "Banned in %s until %s UTC" chat dateText
-            | Error _ ->
-                return sprintf "Not banned\found in %s" chat
+            | UserIdNotFound ->
+                return "Couldn't resolve username"
         }
         
     let unrestrictUser context chat userId =
@@ -111,7 +109,7 @@ module Processing =
                                                 yield!
                                                     usernames
                                                     |> Seq.map ^ fun u ->
-                                                        restrictUser context chat 1L time
+                                                        restrictUser context chat u time
                                             | Unban username ->
                                                 ()
                                     ]

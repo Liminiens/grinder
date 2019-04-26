@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Grinder.DataAccess.Migrations
 {
     [DbContext(typeof(GrinderContext))]
-    [Migration("20190425143800_InitialCreate")]
+    [Migration("20190426092359_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -23,18 +23,20 @@ namespace Grinder.DataAccess.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd();
 
-                    b.Property<DateTime?>("BannedUntil");
+                    b.Property<DateTimeOffset?>("BannedUntil");
 
-                    b.Property<int>("UserId");
+                    b.Property<long>("UserId");
 
                     b.Property<string>("Username")
                         .IsRequired();
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
-                    b.HasIndex("Username");
+                    b.HasIndex("Username")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });

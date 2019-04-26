@@ -13,9 +13,9 @@ namespace Grinder.DataAccess.Migrations
                 {
                     Id = table.Column<int>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    UserId = table.Column<int>(nullable: false),
+                    UserId = table.Column<long>(nullable: false),
                     Username = table.Column<string>(nullable: false),
-                    BannedUntil = table.Column<DateTime>(nullable: true)
+                    BannedUntil = table.Column<DateTimeOffset>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -25,12 +25,14 @@ namespace Grinder.DataAccess.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Users_UserId",
                 table: "Users",
-                column: "UserId");
+                column: "UserId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Username",
                 table: "Users",
-                column: "Username");
+                column: "Username",
+                unique: true);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
