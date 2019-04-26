@@ -1,7 +1,8 @@
-namespace Grinder
+namespace Grinder.Commands
 
 open System
-   
+open Grinder
+
 module Control =
     open FSharp.Text.RegexProvider
     
@@ -196,4 +197,94 @@ module Control =
                 IgnoreCommand  
         | InvalidMessage ->
             IgnoreCommand
+            
+module Processing =
+    open Funogram
+    open Funogram.Bot
+    open Funogram.Types
+    open Grinder.FunogramExt
+    open Control
+    
+    type UserMessageContext = {
+        UpdateContext: UpdateContext
+        BotUsername: string
+        Message: Message
+        MessageText: string
+        From: User
+        FromUsername: string
+        ChatUsername: string
+    }
+    
+    let iterTextMessage fn (context: UpdateContext) (message: Message) =
+        context.Me.Username
+        |> Option.bind ^ fun botUsername ->
+            message.From
+            |> Option.map ^ fun from ->
+                (botUsername, message, from)
+        |> Option.bind ^ fun (botUsername, message, from) ->
+            from.Username
+            |> Option.map ^ fun username ->
+                (botUsername, message, from, username)
+        |> Option.bind ^ fun (botUsername, message, from, username) ->
+            message.Text
+            |> Option.map ^ fun text ->
+                (botUsername, message, from, username, text)
+        |> Option.bind ^ fun (botUsername, message, from, username, text) ->
+            message.Chat.Username
+            |> Option.map ^ fun chatUsername -> {
+                UpdateContext = context
+                BotUsername = botUsername
+                Message = message
+                MessageText = text
+                From = from
+                FromUsername = username
+                ChatUsername = chatUsername
+            }
+        |> Option.map fn
+        |> Option.defaultValue Async.Unit
+    
+    let private (|CommandAllowed|CommandNotAllowed|) (botSettings: BotSettings, username, chatUsername) =
+        let isAllowedUser username =
+            botSettings.AllowedUsers 
+            |> Array.contains username
 
+        let isAllowedChat chatUsername =
+            botSettings.ChatsToMonitor 
+            |> Array.contains chatUsername
+            
+        if isAllowedUser username && isAllowedChat chatUsername then    
+            CommandAllowed
+        else
+            CommandNotAllowed
+            
+    let processTextCommand (botSettings: BotSettings) (context: UserMessageContext) = async {
+        match (botSettings, context.FromUsername, context.ChatUsername) with
+        | CommandAllowed ->
+            do! Api.deleteMessage context.Message.Chat.Id context.Message.MessageId
+                |> callApiWithDefaultRetry context.UpdateContext
+                |> Async.Ignore
+            
+            let parsedMessage = Control.parse context.BotUsername context.MessageText
+            let requests = [
+                for chat in botSettings.ChatsToMonitor do
+                    match parsedMessage with
+                    | Ban(UsernameList usernames, time) ->
+                        yield!
+                            usernames
+                            |> Seq.map ^ fun user ->
+                                ApiExt.restrictUser context.UpdateContext chat user time
+                    | Unban(UsernameList usernames) ->
+                        yield!
+                            usernames
+                            |> Seq.map ^ fun user ->
+                                ApiExt.unrestrictUser context.UpdateContext chat user
+                    | IgnoreCommand ->
+                        ()
+            ]
+            let! text = Async.Parallel requests
+            do! String.Join('\n', text)
+                |> sprintf "Username: %s\n\n%s" context.FromUsername
+                |> ApiExt.sendMessage botSettings.Channel context.UpdateContext
+        | CommandNotAllowed ->
+            ()        
+    }

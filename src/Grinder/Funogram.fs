@@ -1,4 +1,4 @@
-module Grinder.Funogram
+module Grinder.FunogramExt
 
 open System
 open System.Threading.Tasks

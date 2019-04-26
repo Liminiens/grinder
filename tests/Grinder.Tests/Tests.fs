@@ -1,15 +1,16 @@
 namespace Tests
 
 open System
-open Grinder
-open Grinder.Control
 open Xunit
+open Grinder.Commands
     
 module Assert =
     let Fail() = Assert.True(false)
     let Success() = Assert.True(true)
         
 module ControlTests =
+    open Grinder.Commands.Control
+    
     [<Fact>]
     let ``Validate returns message without bot username`` () =
         let bot = "@bot"

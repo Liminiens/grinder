@@ -19,10 +19,10 @@
         <Content Include="bot_config.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <Compile Include="Common.fs" />
         <Compile Include="Datastore.fs" />
         <Compile Include="Funogram.fs" />
-        <Compile Include="Control.fs" />
-        <Compile Include="CommandProcessing.fs" />
+        <Compile Include="Commands.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 
