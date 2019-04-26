@@ -1,4 +1,6 @@
-﻿open Grinder
+﻿module Grinder.ExportTool
+
+open Grinder
 open FSharp.Control
 open FSharp.Control.Tasks.V2
 open Newtonsoft.Json
@@ -125,6 +127,7 @@ let main argv =
         |> Observable.subscribe (updateAuthorizationState dialer authLock)
         
     async {
+        //start by invoking any command
         do! dialer.ExecuteAsync(new TdApi.GetTextEntities())
             |> Async.AwaitTask
             |> Async.Ignore

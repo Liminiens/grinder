@@ -6,7 +6,6 @@ namespace Grinder.DataAccess
     {
         public DbSet<User> Users { get; set; }
 
-
         public static void MigrateUp()
         {
             using (var context = new GrinderContext())
