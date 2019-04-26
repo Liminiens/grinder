@@ -1,5 +1,6 @@
 ﻿namespace Grinder
 
+open Grinder.DataAccess
 open Grinder
 open Grinder.Commands
 open Funogram.Api
@@ -59,8 +60,11 @@ module Program =
                 AllowedUpdates = ["message"] |> Seq.ofList |> Some
         }
 
+        GrinderContext.MigrateUp()
+        
         async {
             printfn "Starting bot"
+            
             let settings = {
                 ChatsToMonitor = config.ChatsToMonitor
                 AllowedUsers = config.AllowedUsers
@@ -69,6 +73,7 @@ module Program =
             do! startBot botConfiguration (onUpdate settings) None
                 |> Async.StartChild
                 |> Async.Ignore
+                
             printfn "Bot started"
             do! Task.Delay(Timeout.InfiniteTimeSpan) |> Async.AwaitTask
         } |> Async.RunSynchronously

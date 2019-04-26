@@ -26,7 +26,7 @@ namespace Grinder.DataAccess
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite("Data Source=data/grinder.db");
+            optionsBuilder.UseSqlite("Data Source=./grinder.db");
         }
     }
 }
