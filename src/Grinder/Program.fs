@@ -30,6 +30,7 @@ module Program =
         ChatsToMonitor: string array
         AllowedUsers: string array
         Channel: int64
+        AdminUser: int64
     }
     
     let createHttpClient config =
@@ -41,22 +42,28 @@ module Program =
     type NewMessageType =
         | NewUsersAdded of User list * Message
         | NewMessage of Message
+        | NewAdminPrivateMessage of Message
     
     module NewMessageType =
-        let fromUpdate (update: Update) =
+        let fromUpdate (settings: BotSettings)  (update: Update)=
             update.Message
             |> Option.map ^ fun message ->
-                match message.NewChatMembers with
-                | Some users ->
-                    NewUsersAdded(List.ofSeq users, message)
-                | None ->
-                    NewMessage message
+                if message.Chat.Id = settings.AdminUser then
+                    NewAdminPrivateMessage message
+                else
+                    match message.NewChatMembers with
+                    | Some users ->
+                        NewUsersAdded(List.ofSeq users, message)
+                    | None ->
+                        NewMessage message
                 
     let onUpdate (settings: BotSettings) (context: UpdateContext) =
         async {
-            do! NewMessageType.fromUpdate context.Update
+            do! NewMessageType.fromUpdate settings context.Update
                 |> Option.map ^ fun newMessage -> async {
                     match newMessage with
+                    | NewAdminPrivateMessage message ->
+                        ()
                     | NewUsersAdded(users, message) ->
                         ()
                     | NewMessage message ->
@@ -87,6 +94,7 @@ module Program =
                 ChatsToMonitor = config.ChatsToMonitor
                 AllowedUsers = config.AllowedUsers
                 Channel = config.Channel
+                AdminUser = config.AdminUser
             }
             do! startBot botConfiguration (onUpdate settings) None
                 |> Async.StartChild
