@@ -37,12 +37,30 @@ module Program =
         messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
         messageHandler.UseProxy <- true
         new HttpClient(messageHandler)
-        
+    
+    type NewMessageType =
+        | NewUsersAdded of User list * Message
+        | NewMessage of Message
+    
+    module NewMessageType =
+        let fromUpdate (update: Update) =
+            update.Message
+            |> Option.map ^ fun message ->
+                match message.NewChatMembers with
+                | Some users ->
+                    NewUsersAdded(List.ofSeq users, message)
+                | None ->
+                    NewMessage message
+                
     let onUpdate (settings: BotSettings) (context: UpdateContext) =
         async {
-            do! context.Update.Message
-                |> Option.map ^ fun message -> async {
-                   do! Processing.iterTextMessage (Processing.processTextCommand settings) context message
+            do! NewMessageType.fromUpdate context.Update
+                |> Option.map ^ fun newMessage -> async {
+                    match newMessage with
+                    | NewUsersAdded(users, message) ->
+                        ()
+                    | NewMessage message ->
+                        do! Processing.iterTextMessage (Processing.processTextCommand settings) context message
                 }
                 |> Option.defaultValue Async.Unit
         } |> Async.Start

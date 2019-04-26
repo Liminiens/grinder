@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.IO;
+using Microsoft.EntityFrameworkCore;
 
 namespace Grinder.DataAccess
 {
@@ -8,6 +9,7 @@ namespace Grinder.DataAccess
 
         public static void MigrateUp()
         {
+            Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "data"));
             using (var context = new GrinderContext())
             {
                 context.Database.Migrate();
@@ -26,7 +28,7 @@ namespace Grinder.DataAccess
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite("Data Source=./grinder.db");
+            optionsBuilder.UseSqlite("Data Source=./data/grinder.db");
         }
     }
 }
