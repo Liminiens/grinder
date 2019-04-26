@@ -161,14 +161,15 @@ module Control =
     let parseBanCommand usernames time =
         if not <| NegativeNumberRegex().TypedMatch(time).Success then
             let duration = Duration()
-            Minutes.Parse time
-            |> Option.iter ^ fun v ->
-                let value = if v.Value < 5 then 5 else v.Value
-                duration.Add(Minutes value)
             Days.Parse time
             |> Option.iter ^ fun v -> duration.Add(Days v.Value)
             Months.Parse time
             |> Option.iter ^ fun v -> duration.Add(Months v.Value)
+            Minutes.Parse time
+            |> Option.iter ^ fun v ->
+                let value = 
+                    if v.Value < 5 && (not <| duration.IsSet()) then 5 else v.Value
+                duration.Add(Minutes value)
             if duration.IsSet() then
                 Ban (usernames, duration.GetValue())
             else

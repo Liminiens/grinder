@@ -8,8 +8,4 @@
         <Compile Include="Common.fs" />
     </ItemGroup>
 
-    <ItemGroup>
-      <PackageReference Include="FSharpx.Extras" Version="2.2.1" />
-    </ItemGroup>
-
 </Project>

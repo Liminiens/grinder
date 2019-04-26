@@ -23,3 +23,5 @@ let rec private retry times (call: Async<Result<'T, ApiResponseError>>) = async 
 }
 
 let callApiWithRetry context times = api context.Config >> retry times
+
+let callApiWithDefaultRetry context = callApiWithRetry context 10

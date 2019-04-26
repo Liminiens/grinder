@@ -27,7 +27,7 @@ module Processing =
             match userResponse with
             | Ok _ ->
                 do! restrictChatMemberBase (Funogram.Types.String(chat)) userId (Some until) (Some false) (Some false) (Some false) (Some false)
-                    |> callApiWithRetry context 4
+                    |> callApiWithDefaultRetry context
                     |> Async.Ignore
                 let dateText = until.ToString("yyyy-MM-dd")
                 return sprintf "Banned in %s until %s UTC" chat dateText
@@ -35,16 +35,16 @@ module Processing =
                 return sprintf "Not banned\found in %s" chat
         }
         
-    let unrestrictUser context chat userId until =
+    let unrestrictUser context chat userId =
         async {
             let! userResponse = 
                 getChatMemberByChatName chat userId
-                |> callApiWithRetry context 4
+                |> callApiWithDefaultRetry context
             match userResponse with
             | Ok _ ->
                 let time = DateTime.UtcNow.AddMinutes(float 1) |> Some
                 do! restrictChatMemberBase (Funogram.Types.String(chat)) userId time (Some true) (Some true) (Some true) (Some true)
-                    |> callApiWithRetry context 4
+                    |> callApiWithDefaultRetry context
                     |> Async.Ignore      
                 return sprintf "Unbanned in %s" chat
             | Error _ ->
@@ -54,7 +54,7 @@ module Processing =
     let sendMessage chatId context text =
         async {
             do! sendMessageBase (ChatId.Int chatId) text None None None None None
-                |> callApiWithRetry context 4
+                |> callApiWithDefaultRetry context
                 |> Async.Ignore  
         }
             
@@ -111,7 +111,7 @@ module Processing =
                                                 yield!
                                                     usernames
                                                     |> Seq.map ^ fun u ->
-                                                        restrictUser context chat u time
+                                                        restrictUser context chat 1L time
                                             | Unban username ->
                                                 ()
                                     ]
