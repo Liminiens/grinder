@@ -1,6 +1,5 @@
 namespace Grinder
 
-open System.IO
 open System.Net.Http
 
 type BotSettings = {
@@ -8,11 +7,13 @@ type BotSettings = {
     ProxyClient: HttpClient
     ChatsToMonitor: string array
     AllowedUsers: string array
-    Channel: int64
-    AdminUser: int64
+    ChannelId: int64
+    AdminUserId: int64
 }
 
+[<RequireQualifiedAccess>]
 module JsonNet =
+    open System.IO
     open Newtonsoft.Json
     
     let deserializeFromStream<'T> (stream: Stream) = 

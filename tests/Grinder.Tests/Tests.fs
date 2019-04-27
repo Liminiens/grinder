@@ -13,8 +13,8 @@ module ControlTests =
     
     [<Fact>]
     let ``Validate returns message without bot username`` () =
-        let bot = "@bot"
-        let text = sprintf "%s @hi  @hi1  @hi2 ban  1test" bot
+        let bot = "bot"
+        let text = sprintf "@%s @hi  @hi1  @hi2 ban  1test" bot
         match Parsing.validate bot text with
         | ValidMessage message ->
             Assert.Equal("@hi  @hi1  @hi2 ban  1test", message)
@@ -29,7 +29,7 @@ module ControlTests =
             Assert.Fail()
         | Command data ->
             let (UsernameList usernames) = data.Usernames
-            Assert.Equal<string>(["@hi"; "@hi1"; "@hi2"], usernames)
+            Assert.Equal<string>(["hi"; "hi1"; "hi2"], usernames)
             match data.Text with
             | BanCommandText command ->
                 Assert.Equal<string>("1test", command)
@@ -122,11 +122,11 @@ module ControlTests =
         
     [<Fact>]
     let ``Parse returns correct command for ban message`` =
-        let bot = "@bot"
+        let bot = "bot"
         let command = sprintf "%s @user @user1 ban 5 min 10 days 1 month" bot
         match Parsing.parse bot command with
         | Ban(UsernameList(users), until) ->
-            Assert.Equal<string>(["@user";"@user1"], users)
+            Assert.Equal<string>(["user";"user1"], users)
             
             let now = DateTime.UtcNow.AddMinutes(float 5).AddDays(float 10).AddMonths(1)
             Assert.Equal(now.Minute, until.Minute)
@@ -138,11 +138,11 @@ module ControlTests =
             
     [<Fact>]
     let ``Parse returns correct command for ban when duration is less than 5 minutes``=
-        let bot = "@bot"
+        let bot = "bot"
         let command = sprintf "%s @user @user1 ban 1 min" bot
         match Parsing.parse bot command with
         | Ban(UsernameList(users), until) ->
-            Assert.Equal<string>(["@user";"@user1"], users)
+            Assert.Equal<string>(["user";"user1"], users)
             
             let now = DateTime.UtcNow.AddMinutes(float 5)
             Assert.Equal(now.Minute, until.Minute)
@@ -154,7 +154,7 @@ module ControlTests =
     [<InlineData("@bot @user @user1 ban -10 month 1 day")>]
     [<InlineData("@bot @user @user1 ban 1 day -1 minutes")>]
     let ``Parse ignores ban command with negative numbers`` (command: string)=
-        let bot = "@bot"
+        let bot = "bot"
         match Parsing.parse bot command with
         | IgnoreCommand ->
             Assert.Success()
@@ -166,10 +166,10 @@ module ControlTests =
     [<InlineData("@bot @user @user1 ban")>]
     [<InlineData("@bot @user @user1 ban forever")>]
     let ``Parse returns correct command for permament ban`` (command: string)=
-        let bot = "@bot"
+        let bot = "bot"
         match Parsing.parse bot command with
         | Ban(UsernameList(users), until) ->
-            Assert.Equal<string>(["@user";"@user1"], users)
+            Assert.Equal<string>(["user";"user1"], users)
             
             let now = DateTime.UtcNow.AddMonths(13)
             Assert.Equal(now.Month, until.Month)
@@ -181,9 +181,9 @@ module ControlTests =
     [<InlineData("@bot @user @123user unban      \r  ")>]
     [<InlineData("@bot @user @123user unban")>]
     let ``Parse returns correct command for unban`` (command: string)=
-        let bot = "@bot"
+        let bot = "bot"
         match Parsing.parse bot command with
         | Unban(UsernameList(users)) ->
-            Assert.Equal<string>(["@user";"@123user"], users)
+            Assert.Equal<string>(["user";"123user"], users)
         | _ ->
             Assert.Fail()

@@ -27,8 +27,8 @@ module Program =
         Token: string
         ChatsToMonitor: string array
         AllowedUsers: string array
-        Channel: int64
-        AdminUser: int64
+        ChannelId: int64
+        AdminUserId: int64
     }
     
     let createHttpClient config =
@@ -47,7 +47,7 @@ module Program =
         let fromUpdate (settings: BotSettings)  (update: Update)=
             update.Message
             |> Option.map ^ fun message ->
-                if message.Chat.Id = settings.AdminUser then
+                if message.Chat.Id = settings.AdminUserId then
                     match message.Document with
                     | Some document ->
                         NewAdminPrivateMessage(document, message)
@@ -66,7 +66,7 @@ module Program =
                 |> Option.map ^ fun newMessage -> async {
                     match newMessage with
                     | NewAdminPrivateMessage(document, message) ->
-                        do! Processing.processAdminCommand settings context document.FileId
+                        do! Processing.iterAdminCommand settings context document.FileId
                     | NewUsersAdded(users, message) ->
                         ()
                     | NewMessage message ->
@@ -102,8 +102,8 @@ module Program =
                 ProxyClient = client
                 ChatsToMonitor = config.ChatsToMonitor
                 AllowedUsers = config.AllowedUsers
-                Channel = config.Channel
-                AdminUser = config.AdminUser
+                ChannelId = config.ChannelId
+                AdminUserId = config.AdminUserId
             }
             do! startBot botConfiguration (onUpdate settings) None
                 |> Async.StartChild

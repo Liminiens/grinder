@@ -51,6 +51,7 @@ module Parsing =
     
     let validate (botUsername: string) (text: string) = 
         let text = text.Trim()
+        let botUsername = sprintf "@%s" botUsername
         if text.StartsWith(botUsername) then
             let message = text.Substring(botUsername.Length, text.Length - botUsername.Length).Trim()
             ValidMessage message
@@ -157,7 +158,11 @@ module Parsing =
                     .Trim()
             match CommandType.parse commandText with
             | Some(command) ->
-                Command { Usernames = UsernameList usernames
+                let usernames = 
+                    usernames
+                    |> List.map ^ fun username -> username.TrimStart('@')
+                    |> UsernameList
+                Command { Usernames = usernames
                           Text = command }
             | None ->
                 InvalidCommand
@@ -202,7 +207,6 @@ module Parsing =
             IgnoreCommand
             
 module Processing =
-    open System.Net
     open Funogram
     open Funogram.Bot
     open Funogram.Types
@@ -269,32 +273,34 @@ module Processing =
                 |> Async.Ignore
             
             let parsedMessage = Parsing.parse context.BotUsername context.MessageText
+            let mutable affectedUsers = List.empty<string>
             let requests = [
                 for chat in botSettings.ChatsToMonitor do
                     match parsedMessage with
                     | Ban(UsernameList usernames, time) ->
-                        yield!
-                            usernames
-                            |> Seq.map ^ fun user ->
-                                ApiExt.restrictUser context.UpdateContext chat user time
+                        affectedUsers <- usernames
+                        yield! usernames
+                               |> Seq.map ^ fun user ->
+                                    ApiExt.restrictUser context.UpdateContext chat user time
                     | Unban(UsernameList usernames) ->
-                        yield!
-                            usernames
-                            |> Seq.map ^ fun user ->
-                                ApiExt.unrestrictUser context.UpdateContext chat user
+                        affectedUsers <- usernames
+                        yield! usernames
+                               |> Seq.map ^ fun user ->
+                                    ApiExt.unrestrictUser context.UpdateContext chat user
                     | IgnoreCommand ->
                         ()
             ]
             if not <| List.isEmpty requests then
                 let! text = Async.Parallel requests
+                let usersText = String.Join(" ", affectedUsers |> List.map (sprintf "@%s"))
                 do! String.Join('\n', text)
-                    |> sprintf "Username: %s\n\n%s" context.FromUsername
-                    |> ApiExt.sendMessage botSettings.Channel context.UpdateContext
+                    |> sprintf "Command from: %s\nAffected users: %s\n%s" context.FromUsername usersText
+                    |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
         | CommandNotAllowed ->
             ()
     }
     
-    let processAdminCommand (botSettings: BotSettings) (context: UpdateContext) fileId = async {
+    let iterAdminCommand (botSettings: BotSettings) (context: UpdateContext) fileId = async {
         let! file = 
             Api.getFile fileId 
             |> callApiWithDefaultRetry context
@@ -308,8 +314,8 @@ module Processing =
             let users = JsonNet.deserializeFromStream<DataAccess.User[]>(stream)
             Datastore.upsertUsers users
             do! "Updated user database"
-                |> ApiExt.sendMessage botSettings.Channel context
+                |> ApiExt.sendMessage botSettings.ChannelId context
         | Error e ->
             do! sprintf "Failed to download file. Description: %s" e.Description
-                |> ApiExt.sendMessage botSettings.Channel context
+                |> ApiExt.sendMessage botSettings.ChannelId context
     }
