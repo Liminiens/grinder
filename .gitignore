@@ -261,4 +261,4 @@ __pycache__/
 *.pyc
 /src/Grinder/bot_config.json
 **/tdlib/*
-grinder.db
+*.db

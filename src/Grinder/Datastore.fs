@@ -1,6 +1,7 @@
 namespace Grinder
 
 open System
+open Microsoft.EntityFrameworkCore
 open Grinder.DataAccess
    
 type BanStateChange =
@@ -15,7 +16,10 @@ type FindUserIdByUsernameResult =
 module Datastore =    
     let upsertUsers (users: User list) =
         use context = new GrinderContext()
-        context.UpdateRange(users)
+        context.Users
+            .UpsertRange(users)
+            .On(fun u -> box u.UserId)
+            .Run() |> ignore
         context.SaveChanges() |> ignore
     
     let findUserIdByUsername username =
