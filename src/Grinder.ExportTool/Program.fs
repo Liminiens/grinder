@@ -142,6 +142,7 @@ let main argv =
             dialer.ExecuteAsync(new TdApi.GetChats(Limit = 200, OffsetOrder = Int64.MaxValue))
             |> Async.AwaitTask
         
+        printfn "Starting export of usernames"
         let! users =
             chats.ChatIds
             |> AsyncSeq.ofSeq
@@ -167,15 +168,15 @@ let main argv =
             |> AsyncSeq.map ^ fun user ->
                 { UserId = user.Id; Username = user.Username }
             |> AsyncSeq.toListAsync
-            
-        use stream =
-            let file =
-                Path.Combine(Directory.GetCurrentDirectory(), sprintf "%s.json" (Guid.NewGuid().ToString()))
-                |> File.Create
-            new StreamWriter(file)
+        
+        let filePath = Path.Combine(Directory.GetCurrentDirectory(), sprintf "%s.json" (Guid.NewGuid().ToString()))
+        use stream = new StreamWriter(File.Create filePath)
+
         users 
         |> List.distinct
         |> JsonConvert.SerializeObject 
-        |> stream.Write  
+        |> stream.Write
+
+        printfn "Finished export of usernames"
     } |> Async.RunSynchronously
     0 // return an integer exit code
