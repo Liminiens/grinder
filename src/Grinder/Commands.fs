@@ -1,9 +1,12 @@
 namespace Grinder.Commands
 
 open System
+open System.IO
 open Grinder
+open Grinder.DataAccess
+open Newtonsoft.Json
 
-module Control =
+module Parsing =
     open FSharp.Text.RegexProvider
     
     type CommandText =
@@ -199,11 +202,12 @@ module Control =
             IgnoreCommand
             
 module Processing =
+    open System.Net
     open Funogram
     open Funogram.Bot
     open Funogram.Types
     open Grinder.FunogramExt
-    open Control
+    open Parsing
     
     type UserMessageContext = {
         UpdateContext: UpdateContext
@@ -264,7 +268,7 @@ module Processing =
                 |> callApiWithDefaultRetry context.UpdateContext
                 |> Async.Ignore
             
-            let parsedMessage = Control.parse context.BotUsername context.MessageText
+            let parsedMessage = Parsing.parse context.BotUsername context.MessageText
             let requests = [
                 for chat in botSettings.ChatsToMonitor do
                     match parsedMessage with
@@ -281,10 +285,31 @@ module Processing =
                     | IgnoreCommand ->
                         ()
             ]
-            let! text = Async.Parallel requests
-            do! String.Join('\n', text)
-                |> sprintf "Username: %s\n\n%s" context.FromUsername
-                |> ApiExt.sendMessage botSettings.Channel context.UpdateContext
+            if not <| List.isEmpty requests then
+                let! text = Async.Parallel requests
+                do! String.Join('\n', text)
+                    |> sprintf "Username: %s\n\n%s" context.FromUsername
+                    |> ApiExt.sendMessage botSettings.Channel context.UpdateContext
         | CommandNotAllowed ->
-            ()        
+            ()
+    }
+    
+    let processAdminCommand (botSettings: BotSettings) (context: UpdateContext) fileId = async {
+        let! file = 
+            Api.getFile fileId 
+            |> callApiWithDefaultRetry context
+
+        match file with
+        | Ok data ->
+            let uri =
+                let filePath = Option.get data.FilePath
+                sprintf "https://api.telegram.org/file/bot%s/%s" botSettings.Token filePath
+            let! stream = botSettings.ProxyClient.GetStreamAsync(uri) |> Async.AwaitTask
+            let users = JsonNet.deserializeFromStream<DataAccess.User[]>(stream)
+            Datastore.upsertUsers users
+            do! "Updated user database"
+                |> ApiExt.sendMessage botSettings.Channel context
+        | Error e ->
+            do! sprintf "Failed to download file. Description: %s" e.Description
+                |> ApiExt.sendMessage botSettings.Channel context
     }

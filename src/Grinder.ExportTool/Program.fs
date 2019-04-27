@@ -166,7 +166,6 @@ let main argv =
                 not <| String.IsNullOrWhiteSpace(user.Username)
             |> AsyncSeq.map ^ fun user ->
                 { UserId = user.Id; Username = user.Username }
-            |> AsyncSeq.distinctUntilChanged
             |> AsyncSeq.toListAsync
             
         use stream =
@@ -174,6 +173,9 @@ let main argv =
                 Path.Combine(Directory.GetCurrentDirectory(), sprintf "%s.json" (Guid.NewGuid().ToString()))
                 |> File.Create
             new StreamWriter(file)
-        users |> JsonConvert.SerializeObject |> stream.Write  
+        users 
+        |> List.distinct
+        |> JsonConvert.SerializeObject 
+        |> stream.Write  
     } |> Async.RunSynchronously
     0 // return an integer exit code

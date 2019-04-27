@@ -19,10 +19,7 @@ namespace Grinder.DataAccess
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>()
-                .HasIndex(b => b.Username)
-                .IsUnique();
-            modelBuilder.Entity<User>()
-                .HasIndex(b => b.UserId)
+                .HasIndex(b => new {b.Username, b.UserId})
                 .IsUnique();
         }
 

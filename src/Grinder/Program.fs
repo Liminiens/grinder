@@ -8,8 +8,6 @@ open Funogram.Bot
 open Funogram.Types
     
 module Program =
-    open System.Threading.Tasks
-    open System.Threading  
     open System.Net.Http
     open System.IO
     open MihaZupan
@@ -40,16 +38,21 @@ module Program =
         new HttpClient(messageHandler)
     
     type NewMessageType =
+        | IgnoreMessage
         | NewUsersAdded of User list * Message
         | NewMessage of Message
-        | NewAdminPrivateMessage of Message
+        | NewAdminPrivateMessage of Document * Message
     
     module NewMessageType =
         let fromUpdate (settings: BotSettings)  (update: Update)=
             update.Message
             |> Option.map ^ fun message ->
                 if message.Chat.Id = settings.AdminUser then
-                    NewAdminPrivateMessage message
+                    match message.Document with
+                    | Some document ->
+                        NewAdminPrivateMessage(document, message)
+                    | None ->
+                        IgnoreMessage
                 else
                     match message.NewChatMembers with
                     | Some users ->
@@ -62,12 +65,14 @@ module Program =
             do! NewMessageType.fromUpdate settings context.Update
                 |> Option.map ^ fun newMessage -> async {
                     match newMessage with
-                    | NewAdminPrivateMessage message ->
-                        ()
+                    | NewAdminPrivateMessage(document, message) ->
+                        do! Processing.processAdminCommand settings context document.FileId
                     | NewUsersAdded(users, message) ->
                         ()
                     | NewMessage message ->
                         do! Processing.iterTextMessage (Processing.processTextCommand settings) context message
+                    | IgnoreMessage ->
+                        ()
                 }
                 |> Option.defaultValue Async.Unit
         } |> Async.Start
@@ -77,11 +82,13 @@ module Program =
         let config =
             File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "bot_config.json"))
             |> JsonConvert.DeserializeObject<BotConfig>
-
+        
+        let client = createHttpClient config.Socks5Proxy
+        
         let botConfiguration = { 
-            defaultConfig with 
+            defaultConfig with
                 Token = config.Token
-                Client = createHttpClient config.Socks5Proxy
+                Client = client
                 AllowedUpdates = ["message"] |> Seq.ofList |> Some
         }
 
@@ -91,6 +98,8 @@ module Program =
             printfn "Starting bot"
             
             let settings = {
+                Token = config.Token
+                ProxyClient = client
                 ChatsToMonitor = config.ChatsToMonitor
                 AllowedUsers = config.AllowedUsers
                 Channel = config.Channel
