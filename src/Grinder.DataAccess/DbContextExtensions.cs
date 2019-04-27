@@ -11,10 +11,13 @@ namespace Grinder.DataAccess
             foreach (var data in records)
             {
                 var fromDatabase = dbSet.AsNoTracking().FirstOrDefault(x => x.Id == data.Id || x.UserId == data.UserId);
-                if (fromDatabase != null && (fromDatabase.Username != data.Username))
+                if (fromDatabase != null)
                 {
-                    fromDatabase.Username = data.Username;
-                    dbSet.Attach(fromDatabase).State = EntityState.Modified;
+                    if (fromDatabase.Username != data.Username)
+                    {
+                        fromDatabase.Username = data.Username;
+                        dbSet.Attach(fromDatabase).State = EntityState.Modified;
+                    }
                 }
                 else
                 {
