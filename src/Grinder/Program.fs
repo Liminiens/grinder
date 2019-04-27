@@ -101,7 +101,7 @@ module Program =
                 |> Async.Ignore
                 
             printfn "Bot started"
-            do! Task.Delay(Timeout.InfiniteTimeSpan) |> Async.AwaitTask
+            do! Async.Sleep(-1)
         } |> Async.RunSynchronously
         
         printfn "Bot exited"
