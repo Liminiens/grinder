@@ -264,10 +264,9 @@ module Processing =
             
     let processTextCommand (botSettings: BotSettings) (context: UserMessageContext) = async {
         
-        let sendCommandResultToChannel (requestsText: string seq) usernames = async {
-            let usersText = String.Join(" ", usernames |> List.map (sprintf "@%s"))
+        let sendCommandResultToChannel (requestsText: string seq) = async {
             do! String.Join('\n', requestsText)
-                |> sprintf "Command from: %s\nAffected users: %s\n%s" context.FromUsername usersText
+                |> sprintf "Command from: %s\n\n%s" context.FromUsername
                 |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
         }
         
@@ -285,14 +284,14 @@ module Processing =
                         for user in usernames do
                             yield ApiExt.restrictUser context.UpdateContext chat user time]
                     |> Async.Parallel
-                do! sendCommandResultToChannel requestsText usernames
+                do! sendCommandResultToChannel requestsText
             | Unban(UsernameList usernames) ->
                 let! requestsText = 
                     [for chat in botSettings.ChatsToMonitor do
                         for user in usernames do
                             yield ApiExt.unrestrictUser context.UpdateContext chat user]
                     |> Async.Parallel
-                do! sendCommandResultToChannel requestsText usernames
+                do! sendCommandResultToChannel requestsText
             | IgnoreCommand -> ()
         | CommandNotAllowed -> ()
     }

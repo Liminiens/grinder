@@ -26,7 +26,7 @@ let rec private retry times (call: Async<Result<'T, ApiResponseError>>) = async 
 
 let callApiWithRetry context times = api context.Config >> retry times
 
-let callApiWithDefaultRetry context = callApiWithRetry context 10
+let callApiWithDefaultRetry context = callApiWithRetry context 5
 
 [<RequireQualifiedAccess>]
 module ApiExt =
@@ -57,11 +57,11 @@ module ApiExt =
             match restrictResult with
             | Ok _ ->
                 let dateText = until.ToString("yyyy-MM-dd")
-                return sprintf "Banned in chat %s until %s UTC" chat dateText
+                return sprintf "Banned @%s in chat %s until %s UTC" username chat dateText
             | Error e ->
-                return sprintf "Failed to ban in chat %s. Description: %s" chat e.Description
+                return sprintf "Failed to ban @%s in chat %s. Description: %s" username chat e.Description
         | UserIdNotFound ->
-            return sprintf "Couldn't resolve username %s" username
+            return sprintf "Couldn't resolve username @%s" username
     }
             
     let unrestrictUser context chat username = async {
@@ -73,11 +73,11 @@ module ApiExt =
                 |> callApiWithDefaultRetry context
             match restrictResult with
             | Ok _ ->
-                return sprintf "Unbanned in chat %s" chat
+                return sprintf "Unbanned @%s in chat %s" username chat
             | Error e ->
-                return sprintf "Failed to unban in chat %s. Description: %s" chat e.Description
+                return sprintf "Failed to unban @%s in chat %s. Description: %s" username chat e.Description
         | UserIdNotFound ->
-            return sprintf "Couldn't resolve username %s" username
+            return sprintf "Couldn't resolve username @%s" username
     }
 
     let sendMessage chatId context text = async {
