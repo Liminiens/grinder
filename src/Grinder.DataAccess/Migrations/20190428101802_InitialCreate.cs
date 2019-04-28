@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Grinder.DataAccess.Migrations
 {
@@ -14,13 +13,18 @@ namespace Grinder.DataAccess.Migrations
                     Id = table.Column<int>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     UserId = table.Column<long>(nullable: false),
-                    Username = table.Column<string>(nullable: false),
-                    BannedUntil = table.Column<DateTimeOffset>(nullable: true)
+                    Username = table.Column<string>(nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Users", x => x.Id);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Username_UserId",
+                table: "Users",
+                columns: new[] { "Username", "UserId" },
+                unique: true);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

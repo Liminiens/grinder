@@ -1,12 +1,7 @@
 namespace Grinder
 
-open System
 open FSharp.Control.Tasks.V2
 open Grinder.DataAccess
-   
-type BanStateChange =
-    | BanLifted
-    | Banned of DateTimeOffset
     
 type FindUserIdByUsernameResult =
     | UserIdNotFound
@@ -32,27 +27,5 @@ module Datastore =
         }
         |> Option.ofNullable
         |> Option.fold (fun _ v -> UserIdFound v) UserIdNotFound
-        
-    let setBanDuration userid duration =
-        task {
-            use context = new GrinderContext()
-            let userToUpdate = 
-                query {
-                    for user in context.Users do
-                        where (user.UserId = userid)
-                        select user
-                        exactlyOne
-                }
-                
-            match duration with
-            | Banned untill ->
-                userToUpdate.BannedUntil <- toNullable untill
-            | BanLifted -> 
-                userToUpdate.BannedUntil <- Nullable()
-                
-            context.Attach(userToUpdate).Property("BannedUntil").IsModified <- true
-            do! context.SaveChangesAsync() |> Task.Ignore
-        }
-        |> Async.AwaitTask
         
     

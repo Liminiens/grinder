@@ -14,7 +14,5 @@ namespace Grinder.DataAccess
 
         [Required]
         public string Username { get; set; }
-
-        public DateTimeOffset? BannedUntil { get; set; }
     }
 }
