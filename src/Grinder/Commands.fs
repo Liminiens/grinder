@@ -312,7 +312,7 @@ module Processing =
                 sprintf "https://api.telegram.org/file/bot%s/%s" botSettings.Token filePath
             let! stream = botSettings.ProxyClient.GetStreamAsync(uri) |> Async.AwaitTask
             let users = JsonNet.deserializeFromStream<DataAccess.User[]>(stream)
-            Datastore.upsertUsers users
+            do! Datastore.upsertUsers users
             do! "Updated user database"
                 |> ApiExt.sendMessage botSettings.ChannelId context
         | Error e ->
