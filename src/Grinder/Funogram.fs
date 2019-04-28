@@ -4,7 +4,9 @@ open System
 open System.Threading.Tasks
 open Funogram.Api
 open Funogram.Bot
+open Funogram.RequestsTypes
 open Funogram.Types
+open Newtonsoft.Json.Converters
 
 let private jitter = new Random()
 
@@ -28,12 +30,29 @@ let callApiWithDefaultRetry context = callApiWithRetry context 10
 
 [<RequireQualifiedAccess>]
 module ApiExt =
+    
+    type RestrictChatMemberReqExt = 
+        { ChatId: ChatId
+          UserId: int64
+          UntilDate: int64
+          CanSendMessages: bool option
+          CanSendMediaMessages: bool option
+          CanSendOtherMessages: bool option
+          CanAddWebPagePreviews: bool option }
+        interface IRequestBase<bool> with
+            member __.MethodName = "restrictChatMember"
+            
+    let restrictChatMemberBaseExt chatId userId (untilDate: DateTime) canSendMessages canSendMediaMessages canSendOtherMessages canAddWebPagePreviews =
+        let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+        { ChatId = chatId; UserId = userId; UntilDate = seconds; CanSendMessages = canSendMessages; 
+        CanSendMediaMessages = canSendMediaMessages; CanSendOtherMessages = canSendOtherMessages; CanAddWebPagePreviews = canAddWebPagePreviews }
+        
     let restrictUser context chat username until = async {
         match Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
             let chat = sprintf "@%s" chat
             let! restrictResult =  
-                restrictChatMemberBase (Funogram.Types.String(chat)) userId (Some until) (Some false) (Some false) (Some false) (Some false)
+                restrictChatMemberBaseExt (Funogram.Types.String(chat)) userId until (Some false) (Some false) (Some false) (Some false)
                 |> callApiWithDefaultRetry context
             match restrictResult with
             | Ok _ ->

@@ -283,18 +283,18 @@ module Processing =
             let parsedMessage = Parsing.parse context.BotUsername context.MessageText
             match parsedMessage with
             | Ban(UsernameList usernames, time) ->
-                let requests = 
+                let! requestsText = 
                     [for chat in botSettings.ChatsToMonitor do
                         for user in usernames do
                             yield ApiExt.restrictUser context.UpdateContext chat user time]
-                let! requestsText = Async.Parallel requests
+                    |> Async.Parallel
                 do! sendCommandResultToChannel requestsText usernames
             | Unban(UsernameList usernames) ->
-                let requests = 
+                let! requestsText = 
                     [for chat in botSettings.ChatsToMonitor do
                         for user in usernames do
                             yield ApiExt.unrestrictUser context.UpdateContext chat user]
-                let! requestsText = Async.Parallel requests
+                    |> Async.Parallel
                 do! sendCommandResultToChannel requestsText usernames
             | IgnoreCommand -> ()
         | CommandNotAllowed -> ()
