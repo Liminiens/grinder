@@ -1,10 +1,7 @@
 namespace Grinder.Commands
 
 open System
-open System.IO
 open Grinder
-open Grinder.DataAccess
-open Newtonsoft.Json
 
 module Parsing =
     open FSharp.Text.RegexProvider
@@ -319,3 +316,12 @@ module Processing =
             do! sprintf "Failed to download file. Description: %s" e.Description
                 |> ApiExt.sendMessage botSettings.ChannelId context
     }
+    
+    let iterNewUsersCommand (users: Types.User seq) = async {
+        do! users
+            |> Seq.filter ^ fun u -> Option.isSome u.Username
+            |> Seq.map ^ fun u ->
+                DataAccess.User(UserId = u.Id, Username = Option.get u.Username)
+            |> Datastore.upsertUsers
+    }
+        

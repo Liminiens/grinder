@@ -39,9 +39,9 @@ module Program =
     
     type NewMessageType =
         | IgnoreMessage
-        | NewUsersAdded of User list * Message
+        | NewUsersAdded of User list
         | NewMessage of Message
-        | NewAdminPrivateMessage of Document * Message
+        | NewAdminPrivateMessage of Document
     
     module NewMessageType =
         let fromUpdate (settings: BotSettings)  (update: Update)=
@@ -50,13 +50,13 @@ module Program =
                 if message.Chat.Id = settings.AdminUserId then
                     match message.Document with
                     | Some document ->
-                        NewAdminPrivateMessage(document, message)
+                        NewAdminPrivateMessage document
                     | None ->
                         IgnoreMessage
                 else
                     match message.NewChatMembers with
                     | Some users ->
-                        NewUsersAdded(List.ofSeq users, message)
+                        NewUsersAdded(List.ofSeq users)
                     | None ->
                         NewMessage message
                 
@@ -65,10 +65,10 @@ module Program =
             do! NewMessageType.fromUpdate settings context.Update
                 |> Option.map ^ fun newMessage -> async {
                     match newMessage with
-                    | NewAdminPrivateMessage(document, message) ->
+                    | NewAdminPrivateMessage document ->
                         do! Processing.iterAdminCommand settings context document.FileId
-                    | NewUsersAdded(users, message) ->
-                        ()
+                    | NewUsersAdded users ->
+                        do! Processing.iterNewUsersCommand users
                     | NewMessage message ->
                         do! Processing.iterTextMessage (Processing.processTextCommand settings) context message
                     | IgnoreMessage ->
