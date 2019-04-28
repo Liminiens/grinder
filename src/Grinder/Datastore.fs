@@ -12,7 +12,7 @@ type FindUserIdByUsernameResult =
     | UserIdFound of int64
         
 [<RequireQualifiedAccess>]
-module Datastore =    
+module Datastore =
     let upsertUsers (users: User seq) =
         use context = new GrinderContext()
         context.Users.AddOrUpdateUsers(users)

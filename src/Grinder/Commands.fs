@@ -266,6 +266,14 @@ module Processing =
             CommandNotAllowed
             
     let processTextCommand (botSettings: BotSettings) (context: UserMessageContext) = async {
+        
+        let sendCommandResultToChannel (requestsText: string seq) usernames = async {
+            let usersText = String.Join(" ", usernames |> List.map (sprintf "@%s"))
+            do! String.Join('\n', requestsText)
+                |> sprintf "Command from: %s\nAffected users: %s\n%s" context.FromUsername usersText
+                |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
+        }
+        
         match (botSettings, context.FromUsername, context.ChatUsername) with
         | CommandAllowed ->
             do! Api.deleteMessage context.Message.Chat.Id context.Message.MessageId
@@ -273,31 +281,23 @@ module Processing =
                 |> Async.Ignore
             
             let parsedMessage = Parsing.parse context.BotUsername context.MessageText
-            let mutable affectedUsers = List.empty<string>
-            let requests = [
-                for chat in botSettings.ChatsToMonitor do
-                    match parsedMessage with
-                    | Ban(UsernameList usernames, time) ->
-                        affectedUsers <- usernames
-                        yield! usernames
-                               |> Seq.map ^ fun user ->
-                                    ApiExt.restrictUser context.UpdateContext chat user time
-                    | Unban(UsernameList usernames) ->
-                        affectedUsers <- usernames
-                        yield! usernames
-                               |> Seq.map ^ fun user ->
-                                    ApiExt.unrestrictUser context.UpdateContext chat user
-                    | IgnoreCommand ->
-                        ()
-            ]
-            if not <| List.isEmpty requests then
-                let! text = Async.Parallel requests
-                let usersText = String.Join(" ", affectedUsers |> List.map (sprintf "@%s"))
-                do! String.Join('\n', text)
-                    |> sprintf "Command from: %s\nAffected users: %s\n%s" context.FromUsername usersText
-                    |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
-        | CommandNotAllowed ->
-            ()
+            match parsedMessage with
+            | Ban(UsernameList usernames, time) ->
+                let requests = 
+                    [for chat in botSettings.ChatsToMonitor do
+                        for user in usernames do
+                            yield ApiExt.restrictUser context.UpdateContext chat user time]
+                let! requestsText = Async.Parallel requests
+                do! sendCommandResultToChannel requestsText usernames
+            | Unban(UsernameList usernames) ->
+                let requests = 
+                    [for chat in botSettings.ChatsToMonitor do
+                        for user in usernames do
+                            yield ApiExt.unrestrictUser context.UpdateContext chat user]
+                let! requestsText = Async.Parallel requests
+                do! sendCommandResultToChannel requestsText usernames
+            | IgnoreCommand -> ()
+        | CommandNotAllowed -> ()
     }
     
     let iterAdminCommand (botSettings: BotSettings) (context: UpdateContext) fileId = async {
