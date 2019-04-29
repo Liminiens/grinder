@@ -1,6 +1,8 @@
 namespace Grinder
 
 open FSharp.Control.Tasks.V2
+open System.Linq
+open Microsoft.EntityFrameworkCore
 open Grinder.DataAccess
     
 type FindUserIdByUsernameResult =
@@ -18,14 +20,15 @@ module Datastore =
         |> Async.AwaitTask
     
     let findUserIdByUsername username =
-        use context = new GrinderContext()
-        query {
-            for user in context.Users do
-                where (user.Username = username)
-                select (toNullable user.UserId)
-                exactlyOneOrDefault
+        task {
+            use context = new GrinderContext()
+            let! user =
+                context.Users
+                    .FirstOrDefaultAsync(fun u -> u.Username = username)
+            return user
+                   |> Option.ofObj
+                   |> Option.fold (fun _ u -> UserIdFound u.UserId) UserIdNotFound
         }
-        |> Option.ofNullable
-        |> Option.fold (fun _ v -> UserIdFound v) UserIdNotFound
+        |> Async.AwaitTask
         
     

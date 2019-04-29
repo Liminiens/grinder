@@ -6,7 +6,6 @@ open Funogram.Api
 open Funogram.Bot
 open Funogram.RequestsTypes
 open Funogram.Types
-open Newtonsoft.Json.Converters
 
 let private jitter = new Random()
 
@@ -48,7 +47,7 @@ module ApiExt =
         CanSendMediaMessages = canSendMediaMessages; CanSendOtherMessages = canSendOtherMessages; CanAddWebPagePreviews = canAddWebPagePreviews }
         
     let restrictUser context chat username until = async {
-        match Datastore.findUserIdByUsername username with
+        match! Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
             let chat = sprintf "@%s" chat
             let! restrictResult =  
@@ -65,7 +64,7 @@ module ApiExt =
     }
             
     let unrestrictUser context chat username = async {
-        match Datastore.findUserIdByUsername username with
+        match! Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
             let chat = sprintf "@%s" chat
             let! restrictResult = 
