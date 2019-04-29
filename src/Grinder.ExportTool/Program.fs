@@ -89,19 +89,24 @@ let getAllSupergroupMembers (dialer: Dialer) supergroupId = task {
     let rec call result = task {
         let currentMemberCount = List.length result
         match currentMemberCount with
-        | x when x = memberCount ->
+        | x when x = memberCount || x >= (memberCount - 100) ->
             return result
         | _ ->
             let! groupMembers =
                 dialer.ExecuteAsync(new TdApi.GetSupergroupMembers(SupergroupId = supergroupId, Offset = currentMemberCount, Limit = 200))
             let members = groupMembers.Members |> List.ofArray
             let total = members @ result
-            if List.length total < memberCount then
+            if groupMembers.Members.Length = 0 then
+                return members
+            elif List.length total < memberCount then
                 return! call total
             else
                 return total
     }
-    return! call []
+    if info.CanGetMembers then
+        return! call []
+    else 
+        return []
 }
 
 type Username = { UserId: int; Username: string }
@@ -133,11 +138,7 @@ let main argv =
             |> Async.Ignore
         
         while not <| authLock.WaitOne() do ()
-        
-        let chatNames =
-            [ "fsharp_flood"; "fsharp_chat"; "pro_net"; "DotNetRuChat"; "dotnettalks";
-              "DotNetChat"; "microsoftstackjobs"; "powershell_pro"; "cilchat" ]
-        
+
         let! chats =
             dialer.ExecuteAsync(new TdApi.GetChats(Limit = 200, OffsetOrder = Int64.MaxValue))
             |> Async.AwaitTask
@@ -153,10 +154,7 @@ let main argv =
             |> AsyncSeq.ofType<_, TdApi.ChatType.ChatTypeSupergroup>
             |> AsyncSeq.mapTask ^ fun supergroupType ->
                 dialer.ExecuteAsync(new TdApi.GetSupergroup(SupergroupId = supergroupType.SupergroupId))
-            |> AsyncSeq.filter ^ fun supergroup ->
-                chatNames
-                |> List.contains supergroup.Username
-            |> AsyncSeq.mapTaskParallel ^ fun supergroup ->
+            |> AsyncSeq.mapTask ^ fun supergroup ->
                 getAllSupergroupMembers dialer supergroup.Id
             |> AsyncSeq.collect ^ fun members ->
                 members
