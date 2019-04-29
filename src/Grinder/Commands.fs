@@ -4,8 +4,8 @@ open System
 open Grinder
 
 module Parsing =
-    open FSharp.Text.RegexProvider
-    
+    open System.Text.RegularExpressions
+
     type CommandText =
         | BanCommandText of string
         | UnbanCommandText of string
@@ -55,20 +55,20 @@ module Parsing =
         else
             InvalidMessage
    
-    type MinutesRegex = Regex< "(?<value>\d+)\s+min(s|utes)?" >
+    let MinutesRegex = new Regex("(?<value>\d+)\s+min(s|utes)?", RegexOptions.Compiled)
     
-    type DaysRegex = Regex< "(?<value>\d+)\s+day(s)?" >
+    let DaysRegex = new Regex("(?<value>\d+)\s+day(s)?", RegexOptions.Compiled)
     
-    type MonthsRegex = Regex< "(?<value>\d+)\s+month(s)?" >
+    let MonthsRegex = new Regex("(?<value>\d+)\s+month(s)?", RegexOptions.Compiled)
     
-    type NegativeNumberRegex = Regex< "-\d+" >
+    let NegativeNumberRegex = new Regex("-\d+", RegexOptions.Compiled)
 
     type Minutes =
         private Minutes of int32
             static member Parse(text) =
-                let result = MinutesRegex().TypedMatch(text)
-                if result.value.Success then
-                    let value = int32 result.value.Value
+                let result = MinutesRegex.Match(text)
+                if result.Groups.["value"].Success then
+                    let value = int32 result.Groups.["value"].Value
                     if value > 0 then 
                         value |> Minutes |> Some
                     else
@@ -83,9 +83,9 @@ module Parsing =
     type Days =
         private Days of int32
             static member Parse(text) =
-                let result = DaysRegex().TypedMatch(text)
-                if result.value.Success then
-                    let value = int32 result.value.Value
+                let result = DaysRegex.Match(text)
+                if result.Groups.["value"].Success then
+                    let value = int32 result.Groups.["value"].Value
                     if value > 0 then 
                         value |> Days |> Some
                     else
@@ -100,9 +100,9 @@ module Parsing =
     type Months =
         private Months of int32
             static member Parse(text) =
-                let result = MonthsRegex().TypedMatch(text)
-                if result.value.Success then
-                    let value = int32 result.value.Value
+                let result = MonthsRegex.Match(text)
+                if result.Groups.["value"].Success then
+                    let value = int32 result.Groups.["value"].Value
                     if value > 0 then 
                         value |> Months |> Some
                     else
@@ -165,7 +165,7 @@ module Parsing =
                 InvalidCommand
 
     let parseBanCommand usernames time =
-        if not <| NegativeNumberRegex().TypedMatch(time).Success then
+        if not <| NegativeNumberRegex.Match(time).Success then
             let duration = Duration()
             Days.Parse time
             |> Option.iter ^ fun v -> duration.Add(Days v.Value)
