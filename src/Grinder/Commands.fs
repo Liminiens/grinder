@@ -5,7 +5,7 @@ open Grinder
 
 module Parsing =
     open System.Text.RegularExpressions
-
+    
     type CommandText =
         | BanCommandText of string
         | UnbanCommandText of string
@@ -320,11 +320,10 @@ module Processing =
                 |> ApiExt.sendMessage botSettings.ChannelId context
     }
     
-    let iterNewUsersCommand (users: Types.User seq) = async {
-        do! users
-            |> Seq.filter ^ fun u -> Option.isSome u.Username
-            |> Seq.map ^ fun u ->
-                DataAccess.User(UserId = u.Id, Username = Option.get u.Username)
-            |> Datastore.upsertUsers
-    }
+    let iterNewUsersCommand (users: Types.User seq) =
+        users
+        |> Seq.filter ^ fun u -> Option.isSome u.Username
+        |> Seq.map ^ fun u ->
+            DataAccess.User(UserId = u.Id, Username = Option.get u.Username)
+        |> Datastore.upsertUsers
         

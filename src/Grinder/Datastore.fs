@@ -1,7 +1,6 @@
 namespace Grinder
 
 open FSharp.Control.Tasks.V2
-open System.Linq
 open Microsoft.EntityFrameworkCore
 open Grinder.DataAccess
     

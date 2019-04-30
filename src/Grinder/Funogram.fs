@@ -79,8 +79,7 @@ module ApiExt =
             return sprintf "Couldn't resolve username @%s" username
     }
 
-    let sendMessage chatId context text = async {
-        do! sendMessageBase (ChatId.Int chatId) text None None None None None
-            |> callApiWithDefaultRetry context
-            |> Async.Ignore  
-    }
+    let sendMessage chatId context text =
+        sendMessageBase (ChatId.Int chatId) text None None None None None
+        |> callApiWithDefaultRetry context
+        |> Async.Ignore  

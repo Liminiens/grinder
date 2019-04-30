@@ -71,8 +71,7 @@ module Program =
                         do! Processing.iterNewUsersCommand users
                     | NewMessage message ->
                         do! Processing.iterTextMessage (Processing.processTextCommand settings) context message
-                    | IgnoreMessage ->
-                        ()
+                    | IgnoreMessage -> ()
                 }
                 |> Option.defaultValue Async.Unit
         } |> Async.Start
