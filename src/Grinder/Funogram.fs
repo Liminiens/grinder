@@ -62,6 +62,19 @@ module ApiExt =
         | UserIdNotFound ->
             return sprintf "Couldn't resolve username @%s" username
     }
+    
+    let restrictUserById context chat userId until = async {
+        let chat = sprintf "@%s" chat
+        let! restrictResult =  
+            restrictChatMemberBaseExt (Funogram.Types.String(chat)) userId until (Some false) (Some false) (Some false) (Some false)
+            |> callApiWithDefaultRetry context
+        match restrictResult with
+        | Ok _ ->
+            let dateText = until.ToString("yyyy-MM-dd")
+            return sprintf "Banned %i in chat %s until %s UTC" userId chat dateText
+        | Error e ->
+            return sprintf "Failed to ban %i in chat %s. Description: %s" userId chat e.Description
+    }
             
     let unrestrictUser context chat username = async {
         match! Datastore.findUserIdByUsername username with

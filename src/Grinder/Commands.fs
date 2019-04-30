@@ -1,6 +1,7 @@
 namespace Grinder.Commands
 
 open System
+open System
 open Grinder
 
 module Parsing =
@@ -215,7 +216,17 @@ module Processing =
         BotUsername: string
         Message: Message
         MessageText: string
-        From: User
+        FromUsername: string
+        ChatUsername: string
+    }
+    
+    type ReplyToMessageContext = {
+        UpdateContext: UpdateContext
+        BotUsername: string
+        Message: Message
+        MessageText: string
+        ReplyToUser: User
+        ReplyToMessage: Message
         FromUsername: string
         ChatUsername: string
     }
@@ -229,19 +240,18 @@ module Processing =
         |> Option.bind ^ fun (botUsername, message, from) ->
             from.Username
             |> Option.map ^ fun username ->
-                (botUsername, message, from, username)
-        |> Option.bind ^ fun (botUsername, message, from, username) ->
+                (botUsername, message, username)
+        |> Option.bind ^ fun (botUsername, message, username) ->
             message.Text
             |> Option.map ^ fun text ->
-                (botUsername, message, from, username, text)
-        |> Option.bind ^ fun (botUsername, message, from, username, text) ->
+                (botUsername, message, username, text)
+        |> Option.bind ^ fun (botUsername, message, username, text) ->
             message.Chat.Username
             |> Option.map ^ fun chatUsername -> {
                 UpdateContext = context
                 BotUsername = botUsername
                 Message = message
                 MessageText = text
-                From = from
                 FromUsername = username
                 ChatUsername = chatUsername
             }
@@ -261,41 +271,40 @@ module Processing =
             CommandAllowed
         else
             CommandNotAllowed
+    
+    let private sendCommandResultToChannel channelId context from (requestsText: string seq) =
+        String.Join('\n', requestsText)
+        |> sprintf "Command from: %s\n\n%s" from
+        |> ApiExt.sendMessage channelId context
+    
+    let private deleteMessage context chatId messageId =
+        Api.deleteMessage chatId messageId
+        |> callApiWithDefaultRetry context
+        |> Async.Ignore
             
     let processTextCommand (botSettings: BotSettings) (context: UserMessageContext) = async {
-        
-        let sendCommandResultToChannel (requestsText: string seq) =
-            String.Join('\n', requestsText)
-            |> sprintf "Command from: %s\n\n%s" context.FromUsername
-            |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
-        
-        let deleteMessageToBot() =
-            Api.deleteMessage context.Message.Chat.Id context.Message.MessageId
-            |> callApiWithDefaultRetry context.UpdateContext
-            |> Async.Ignore
-        
         match (botSettings, context.FromUsername, context.ChatUsername) with
         | CommandAllowed ->
             let parsedMessage = Parsing.parse context.BotUsername context.MessageText
             match parsedMessage with
             | Ban(UsernameList usernames, time) ->
-                do! deleteMessageToBot()
+                do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
                 
                 let! requestsText = 
                     [for chat in botSettings.ChatsToMonitor do
                         for user in usernames do
                             yield ApiExt.restrictUser context.UpdateContext chat user time]
                     |> Async.Parallel
-                do! sendCommandResultToChannel requestsText
+                do! sendCommandResultToChannel botSettings.ChannelId context.UpdateContext context.FromUsername requestsText
             | Unban(UsernameList usernames) ->
-                do! deleteMessageToBot()
+                do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
                 
                 let! requestsText = 
                     [for chat in botSettings.ChatsToMonitor do
                         for user in usernames do
                             yield ApiExt.unrestrictUser context.UpdateContext chat user]
                     |> Async.Parallel
-                do! sendCommandResultToChannel requestsText
+                do! sendCommandResultToChannel botSettings.ChannelId context.UpdateContext context.FromUsername requestsText
             | IgnoreCommand -> ()
         | CommandNotAllowed -> ()
     }
@@ -318,6 +327,84 @@ module Processing =
         | Error e ->
             do! sprintf "Failed to download file. Description: %s" e.Description
                 |> ApiExt.sendMessage botSettings.ChannelId context
+    }
+    
+    let iterReplyToMessage fn (context: UpdateContext) (reply: ReplyToMessage) =
+        context.Me.Username
+        |> Option.bind ^ fun botUsername ->
+            reply.Message.From
+            |> Option.map ^ fun from ->
+                (botUsername, reply.Message, from)
+        |> Option.bind ^ fun (botUsername, message, from) ->
+            from.Username
+            |> Option.map ^ fun username ->
+                (botUsername, message, username)
+        |> Option.bind ^ fun (botUsername, message, username) ->
+            message.Text
+            |> Option.map ^ fun text ->
+                (botUsername, message, username, text)
+        |> Option.bind ^ fun (botUsername, message, username, text) ->
+            message.Chat.Username
+            |> Option.map ^ fun chatUsername ->
+                (chatUsername, botUsername, message, username, text)
+        |> Option.bind ^ fun (chatUsername, botUsername, message, username, text) ->
+            if reply.ReplyToMessage.From = reply.Message.From then
+                reply.ReplyToMessage.NewChatMember
+                |> Option.map ^ fun user -> 
+                     { UpdateContext = context
+                       BotUsername = botUsername
+                       Message = message
+                       MessageText = text
+                       ReplyToUser = user
+                       ReplyToMessage = reply.ReplyToMessage
+                       FromUsername = username
+                       ChatUsername = chatUsername }
+            else
+                match reply.ReplyToMessage.From with
+                | Some from -> 
+                  { UpdateContext = context
+                    BotUsername = botUsername
+                    Message = message
+                    MessageText = text
+                    ReplyToUser = from
+                    ReplyToMessage = reply.ReplyToMessage
+                    FromUsername = username
+                    ChatUsername = chatUsername }
+                  |> Some
+                | None ->
+                   reply.ReplyToMessage.NewChatMember
+                   |> Option.map ^ fun user -> 
+                        { UpdateContext = context
+                          BotUsername = botUsername
+                          Message = message
+                          MessageText = text
+                          ReplyToUser = user
+                          ReplyToMessage = reply.ReplyToMessage
+                          FromUsername = username
+                          ChatUsername = chatUsername }
+        |> Option.map fn
+        |> Option.defaultValue Async.Unit
+    
+    let processReplyMessage (botSettings: BotSettings) (context: ReplyToMessageContext) = async {
+        match (botSettings, context.FromUsername, context.ChatUsername) with
+        | CommandAllowed ->
+            if context.MessageText.Contains("ban") && context.MessageText.Contains(context.BotUsername) then
+                do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
+                do! deleteMessage context.UpdateContext context.ReplyToMessage.Chat.Id context.ReplyToMessage.MessageId
+                
+                let! requestsText = 
+                    [for chat in botSettings.ChatsToMonitor do
+                        yield ApiExt.restrictUserById context.UpdateContext chat context.ReplyToUser.Id (DateTime.UtcNow.AddMonths(13))]
+                    |> Async.Parallel
+                    
+                do! sendCommandResultToChannel botSettings.ChannelId context.UpdateContext context.FromUsername requestsText
+                
+                match context.ReplyToUser.Username with
+                | Some username ->
+                    do! [DataAccess.User(UserId = context.ReplyToUser.Id, Username = username)]
+                        |> Datastore.upsertUsers
+                | None -> ()
+        | CommandNotAllowed -> ()
     }
     
     let iterNewUsersCommand (users: Types.User seq) =

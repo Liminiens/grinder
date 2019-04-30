@@ -37,12 +37,6 @@ module Program =
         messageHandler.UseProxy <- true
         new HttpClient(messageHandler)
     
-    type NewMessageType =
-        | IgnoreMessage
-        | NewUsersAdded of User list
-        | NewMessage of Message
-        | NewAdminPrivateMessage of Document
-    
     module NewMessageType =
         let fromUpdate (settings: BotSettings)  (update: Update)=
             update.Message
@@ -58,7 +52,13 @@ module Program =
                     | Some users ->
                         NewUsersAdded(List.ofSeq users)
                     | None ->
-                        NewMessage message
+                        match message.ReplyToMessage with
+                        | Some reply ->
+                            { Message = message; ReplyToMessage = reply }
+                            |> ReplyToMessage
+                        | None ->
+                            NewMessage message
+                            
                 
     let onUpdate (settings: BotSettings) (context: UpdateContext) =
         async {
@@ -71,6 +71,8 @@ module Program =
                         do! Processing.iterNewUsersCommand users
                     | NewMessage message ->
                         do! Processing.iterTextMessage (Processing.processTextCommand settings) context message
+                    | ReplyToMessage replyToMessage ->
+                        do! Processing.iterReplyToMessage (Processing.processReplyMessage settings) context replyToMessage
                     | IgnoreMessage -> ()
                 }
                 |> Option.defaultValue Async.Unit
