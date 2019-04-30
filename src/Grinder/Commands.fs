@@ -264,11 +264,10 @@ module Processing =
             
     let processTextCommand (botSettings: BotSettings) (context: UserMessageContext) = async {
         
-        let sendCommandResultToChannel (requestsText: string seq) = async {
-            do! String.Join('\n', requestsText)
-                |> sprintf "Command from: %s\n\n%s" context.FromUsername
-                |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
-        }
+        let sendCommandResultToChannel (requestsText: string seq) =
+            String.Join('\n', requestsText)
+            |> sprintf "Command from: %s\n\n%s" context.FromUsername
+            |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
         
         let deleteMessageToBot() =
             Api.deleteMessage context.Message.Chat.Id context.Message.MessageId
