@@ -270,15 +270,18 @@ module Processing =
                 |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
         }
         
+        let deleteMessageToBot() =
+            Api.deleteMessage context.Message.Chat.Id context.Message.MessageId
+            |> callApiWithDefaultRetry context.UpdateContext
+            |> Async.Ignore
+        
         match (botSettings, context.FromUsername, context.ChatUsername) with
         | CommandAllowed ->
-            do! Api.deleteMessage context.Message.Chat.Id context.Message.MessageId
-                |> callApiWithDefaultRetry context.UpdateContext
-                |> Async.Ignore
-            
             let parsedMessage = Parsing.parse context.BotUsername context.MessageText
             match parsedMessage with
             | Ban(UsernameList usernames, time) ->
+                do! deleteMessageToBot()
+                
                 let! requestsText = 
                     [for chat in botSettings.ChatsToMonitor do
                         for user in usernames do
@@ -286,6 +289,8 @@ module Processing =
                     |> Async.Parallel
                 do! sendCommandResultToChannel requestsText
             | Unban(UsernameList usernames) ->
+                do! deleteMessageToBot()
+                
                 let! requestsText = 
                     [for chat in botSettings.ChatsToMonitor do
                         for user in usernames do
