@@ -17,7 +17,7 @@ let rec private retry times (call: Async<Result<'T, ApiResponseError>>) = async 
         printfn "Api call error: %A; ErrorCode: %i" e.Description e.ErrorCode
         if times <> 0 then
             let delay = jitter.Next(1, 4) |> float
-            do! Task.Delay(TimeSpan.FromSeconds(2. + delay)) |> Async.AwaitTask
+            do! Async.Sleep(TimeSpan.FromSeconds(2. + delay).Milliseconds)
             return! retry (times - 1) call
         else
             return Error e

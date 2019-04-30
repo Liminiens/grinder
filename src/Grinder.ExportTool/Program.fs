@@ -89,7 +89,7 @@ let getAllSupergroupMembers (dialer: Dialer) supergroupId = task {
     let rec call result = task {
         let currentMemberCount = List.length result
         match currentMemberCount with
-        | x when x = memberCount || x >= (memberCount - 100) ->
+        | x when x = memberCount ->
             return result
         | _ ->
             let! groupMembers =
