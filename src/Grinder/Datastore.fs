@@ -12,9 +12,10 @@ type FindUserIdByUsernameResult =
 module Datastore =
     let upsertUsers (users: User seq) =
         task {
-            use context = new GrinderContext()
-            do! context.Users.AddOrUpdateUsers(users)
-            do! context.SaveChangesAsync() |> Task.Ignore
+            for chunk in Seq.chunkBySize 500 users do
+                use context = new GrinderContext()
+                do! context.Users.AddOrUpdateUsers(chunk)
+                do! context.SaveChangesAsync() |> Task.Ignore
         }
         |> Async.AwaitTask
     
