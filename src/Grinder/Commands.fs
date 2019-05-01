@@ -274,7 +274,7 @@ module Processing =
     
     let private sendCommandResultToChannel channelId context from (requestsText: string seq) =
         String.Join('\n', requestsText)
-        |> sprintf "Command from: %s\n\n%s" from
+        |> sprintf "Command from: @%s\n\n%s" from
         |> ApiExt.sendMessage channelId context
     
     let private deleteMessage context chatId messageId =
