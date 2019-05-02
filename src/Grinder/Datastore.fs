@@ -9,8 +9,8 @@ type FindUserIdByUsernameResult =
     | UserIdFound of int64
         
 type FindUsernameByUserIdResult =
-    | UserNameNotFound
-    | UserNameFound of string
+    | UsernameNotFound
+    | UsernameFound of string
 
 [<RequireQualifiedAccess>]
 module Datastore =
@@ -43,7 +43,7 @@ module Datastore =
                     .FirstOrDefaultAsync(fun u -> u.UserId = userId)
             return user
                    |> Option.ofObj
-                   |> Option.fold (fun _ u -> UserNameFound u.Username) UserNameNotFound
+                   |> Option.fold (fun _ u -> UsernameFound u.Username) UsernameNotFound
         }
         |> Async.AwaitTask
         

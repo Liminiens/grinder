@@ -65,9 +65,9 @@ module ApiExt =
     
     let getUsernameByIdForLogging userId = async {
         match! Datastore.findUsernameByUserId userId with
-        | UserNameFound userName ->
+        | UsernameFound userName ->
             return userName
-        | UserNameNotFound ->
+        | UsernameNotFound ->
             return "unknown"
     }
 
