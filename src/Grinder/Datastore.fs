@@ -41,6 +41,7 @@ module Datastore =
             let! user =
                 context.Users
                     .FirstOrDefaultAsync(fun u -> u.UserId = userId)
+            
             return user
                    |> Option.ofObj
                    |> Option.fold (fun _ u -> UsernameFound u.Username) UsernameNotFound

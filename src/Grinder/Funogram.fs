@@ -1,7 +1,6 @@
 module Grinder.FunogramExt
 
 open System
-open System.Threading.Tasks
 open Funogram.Api
 open Funogram.Bot
 open Funogram.RequestsTypes
@@ -40,7 +39,7 @@ module ApiExt =
           CanAddWebPagePreviews: bool option }
         interface IRequestBase<bool> with
             member __.MethodName = "restrictChatMember"
-            
+             
     let restrictChatMemberBaseExt chatId userId (untilDate: DateTime) canSendMessages canSendMediaMessages canSendOtherMessages canAddWebPagePreviews =
         let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
         { ChatId = chatId; UserId = userId; UntilDate = seconds; CanSendMessages = canSendMessages; 
@@ -55,34 +54,23 @@ module ApiExt =
                 |> callApiWithDefaultRetry context
             match restrictResult with
             | Ok _ ->
-                let dateText = until.ToString("yyyy-MM-dd")
-                return sprintf "Banned @%s in chat %s until %s UTC" username chat dateText
+                return Ok ()
             | Error e ->
-                return sprintf "Failed to ban @%s in chat %s. Description: %s" username chat e.Description
+                return Error <| sprintf "Failed to ban @%s in chat %s. Description: %s" username chat e.Description
         | UserIdNotFound ->
-            return sprintf "Couldn't resolve username @%s" username
-    }
-    
-    let getUsernameByIdForLogging userId = async {
-        match! Datastore.findUsernameByUserId userId with
-        | UsernameFound username ->
-            return username
-        | UsernameNotFound ->
-            return "unknown"
+            return Error <| sprintf "Couldn't resolve username @%s" username
     }
 
     let restrictUserById context chat userId until = async {
         let chat = sprintf "@%s" chat
-        let! usernameForLogging = getUsernameByIdForLogging userId
         let! restrictResult =  
             restrictChatMemberBaseExt (Funogram.Types.String(chat)) userId until (Some false) (Some false) (Some false) (Some false)
             |> callApiWithDefaultRetry context
         match restrictResult with
         | Ok _ ->
-            let dateText = until.ToString("yyyy-MM-dd")
-            return sprintf "Banned %i (%s) in chat %s until %s UTC" userId usernameForLogging chat dateText
+            return Ok ()
         | Error e ->
-            return sprintf "Failed to ban %i (%s) in chat %s. Description: %s" userId usernameForLogging chat e.Description
+            return Error <| sprintf "Failed to ban %i in chat %s. Description: %s" userId chat e.Description
     }
             
     let unrestrictUser context chat username = async {
@@ -94,11 +82,11 @@ module ApiExt =
                 |> callApiWithDefaultRetry context
             match restrictResult with
             | Ok _ ->
-                return sprintf "Unbanned @%s in chat %s" username chat
+                return Ok ()
             | Error e ->
-                return sprintf "Failed to unban @%s in chat %s. Description: %s" username chat e.Description
+                return Error <| sprintf "Failed to unban @%s in chat %s. Description: %s" username chat e.Description
         | UserIdNotFound ->
-            return sprintf "Couldn't resolve username @%s" username
+            return Error <| sprintf "Couldn't resolve username @%s" username
     }
 
     let sendMessage chatId context text =
