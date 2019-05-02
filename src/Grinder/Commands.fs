@@ -300,7 +300,11 @@ module Processing =
                     |> Async.Parallel
                     
                 let message =
-                    let durationText = time.ToString("yyyy-MM-dd HH:mm:ss")
+                    let durationText =
+                        if time > DateTime.UtcNow.AddMonths(12) then
+                            "forever"
+                        else
+                            time.ToString("yyyy-MM-dd HH:mm:ss")
                     let usernamesText =
                         usernames
                         |> List.map (sprintf "@%s")
@@ -451,7 +455,7 @@ module Processing =
                         botSettings.ChatsToMonitor
                         |> Array.map (sprintf "@%s")
                         |> String.join ", "
-                    sprintf "Unbanned %i (%s) in chats %s" context.ReplyToUser.Id username chatsText
+                    sprintf "Banned %i (%s) in chats %s forever" context.ReplyToUser.Id username chatsText
                     
                 do! concatErros requestsResult
                     |> sprintf "Command from: @%s\n\n%s\n%s" context.FromUsername message
