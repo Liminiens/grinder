@@ -20,7 +20,7 @@ File structure:
     "Password": "..."
   },
   "ChatsToMonitor": [
-    "chat username without at sign",
+    "chat @username",
     ...
   ],
   "AllowedUsers": [

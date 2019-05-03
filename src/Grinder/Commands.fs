@@ -203,7 +203,7 @@ module Processing =
                 Message = message
                 MessageText = text
                 FromUsername = %username
-                ChatUsername = %chatUsername
+                ChatUsername = %(sprintf "@%s" chatUsername)
             }
         |> Option.map fn
         |> Option.defaultValue Async.Unit
@@ -245,7 +245,6 @@ module Processing =
                         |> String.join ", "
                     let chatsText =
                         botSettings.ChatsToMonitor.Set
-                        |> Set.map (sprintf "@%s")
                         |> String.join ", "
                     sprintf "Banned %s in chats %s until %s UTC" usernamesText chatsText durationText
                     
@@ -268,7 +267,6 @@ module Processing =
                         |> String.join ", "
                     let chatsText =
                         botSettings.ChatsToMonitor.Set
-                        |> Set.map (sprintf "@%s")
                         |> String.join ", "
                     sprintf "Unbanned %s in chats %s" usernamesText chatsText
                     
@@ -320,7 +318,7 @@ module Processing =
                        ReplyToUser = user
                        ReplyToMessage = reply.ReplyToMessage
                        FromUsername = %username
-                       ChatUsername = %chatUsername }
+                       ChatUsername = %(sprintf "@%s" chatUsername) }
             else
                 match reply.ReplyToMessage.From with
                 | Some from -> 
@@ -331,7 +329,7 @@ module Processing =
                     ReplyToUser = from
                     ReplyToMessage = reply.ReplyToMessage
                     FromUsername = %username
-                    ChatUsername = %chatUsername }
+                    ChatUsername = %(sprintf "@%s" chatUsername) }
                   |> Some
                 | None ->
                    reply.ReplyToMessage.NewChatMember
@@ -343,7 +341,7 @@ module Processing =
                           ReplyToUser = user
                           ReplyToMessage = reply.ReplyToMessage
                           FromUsername = %username
-                          ChatUsername = %chatUsername }
+                          ChatUsername = %(sprintf "@%s" chatUsername) }
         |> Option.map fn
         |> Option.defaultValue Async.Unit
     
@@ -370,7 +368,6 @@ module Processing =
         let message =
             let chatsText =
                 botSettings.ChatsToMonitor.Set
-                |> Set.map (sprintf "@%s")
                 |> String.join ", "
             sprintf "Banned %i (%s) in chats %s forever" context.ReplyToUser.Id username chatsText
                     

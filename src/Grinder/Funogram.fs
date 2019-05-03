@@ -50,7 +50,6 @@ module ApiExt =
     let restrictUser context chat username until = async {
         match! Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
-            let chat = sprintf "@%s" chat
             let! restrictResult =  
                 restrictChatMemberBaseExt (Funogram.Types.String(chat)) userId until (Some false) (Some false) (Some false) (Some false)
                 |> callApiWithDefaultRetry context
@@ -64,7 +63,6 @@ module ApiExt =
     }
 
     let restrictUserById context chat userId until = async {
-        let chat = sprintf "@%s" chat
         let! restrictResult =  
             restrictChatMemberBaseExt (Funogram.Types.String(chat)) userId until (Some false) (Some false) (Some false) (Some false)
             |> callApiWithDefaultRetry context
@@ -78,7 +76,6 @@ module ApiExt =
     let unrestrictUser context chat username = async {
         match! Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
-            let chat = sprintf "@%s" chat
             let! restrictResult = 
                 restrictChatMemberBase (Funogram.Types.String(chat)) userId None (Some true) (Some true) (Some true) (Some true)
                 |> callApiWithDefaultRetry context
