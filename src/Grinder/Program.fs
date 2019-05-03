@@ -68,7 +68,7 @@ module Program =
                 |> Option.map ^ fun newMessage -> async {
                     match newMessage with
                     | NewAdminPrivateMessage document ->
-                        do! Processing.processAdminCommand settings context document.FileId
+                        do! Processing.processAdminCommand settings context.Config document.FileId
                     | NewUsersAdded users ->
                         do! Processing.processNewUsersCommand users
                     | NewMessage message ->
@@ -86,12 +86,10 @@ module Program =
             File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "bot_config.json"))
             |> JsonConvert.DeserializeObject<BotConfig>
         
-        let client = createHttpClient config.Socks5Proxy
-        
         let botConfiguration = { 
             defaultConfig with
                 Token = config.Token
-                Client = client
+                Client = createHttpClient config.Socks5Proxy
                 AllowedUpdates = ["message"] |> Seq.ofList |> Some
         }
 
@@ -102,7 +100,6 @@ module Program =
             
             let settings = {
                 Token = config.Token
-                ProxyClient = client
                 ChatsToMonitor = ChatsToMonitor.Create config.ChatsToMonitor
                 AllowedUsers = AllowedUsers.Create config.AllowedUsers
                 ChannelId = %config.ChannelId

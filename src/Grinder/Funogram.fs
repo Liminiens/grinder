@@ -5,17 +5,17 @@ open Grinder.Types
 open Funogram.Api
 open Funogram.Bot
 open FSharp.UMX
+open Funogram
 open Funogram.RequestsTypes
 open Funogram.Types
 
 let private jitter = new Random()
 
-let rec private retry times (call: Async<Result<'T, ApiResponseError>>) = async {
+let rec private retry times (call: Async<Result<'T, 'TError>>) = async {
     match! call with 
     | Ok ok -> 
         return Ok ok
     | Error e ->
-        printfn "Api call error: %A; ErrorCode: %i" e.Description e.ErrorCode
         if times <> 0 then
             let delay = jitter.Next(1, 4) |> float
             do! Async.Sleep(TimeSpan.FromSeconds(2. + delay).Milliseconds)
@@ -24,9 +24,9 @@ let rec private retry times (call: Async<Result<'T, ApiResponseError>>) = async 
             return Error e
 }
 
-let callApiWithRetry context times = api context.Config >> retry times
+let callApiWithRetry config times = api config >> retry times
 
-let callApiWithDefaultRetry context = callApiWithRetry context 5
+let callApiWithDefaultRetry config = callApiWithRetry config 5
 
 [<RequireQualifiedAccess>]
 module ApiExt =
@@ -94,4 +94,28 @@ module ApiExt =
     let sendMessage (chatId: TelegramChatId) context text =
         sendMessageBase (ChatId.Int %chatId) text None None None None None
         |> callApiWithDefaultRetry context
-        |> Async.Ignore  
+        |> Async.Ignore
+        
+    let prepareAndDownloadFile config fileId = async {
+        match! Api.getFile fileId |> callApiWithDefaultRetry config with
+        | Ok data ->
+            let uri =
+                let filePath = Option.get data.FilePath
+                sprintf "https://api.telegram.org/file/bot%s/%s" config.Token filePath
+            let streamCall = async {
+                try
+                    let! stream = config.Client.GetStreamAsync(uri) |> Async.AwaitTask
+                    return Ok stream
+                with
+                | :? Exception as e ->
+                    return Error <| e.ToString()
+            }
+            let! streamResult = retry 5 streamCall
+            match streamResult with
+            | Ok stream ->
+                return Ok stream
+            | Error e ->
+                return Error { Description = e; ErrorCode = -1 }
+        | Error e ->
+            return Error e
+    }

@@ -4,6 +4,7 @@ open System
 open Grinder
 open Grinder.Types
 open FSharp.UMX
+open Funogram.Api
 
 module Parser =
     open FParsec
@@ -129,7 +130,7 @@ module Processing =
     open Parser
     
     type UserMessageContext = {
-        UpdateContext: UpdateContext
+        BotConfig: BotConfig
         BotUsername: UserUsername
         Message: Message
         MessageText: string
@@ -138,7 +139,7 @@ module Processing =
     }
     
     type ReplyToMessageContext = {
-        UpdateContext: UpdateContext
+        BotConfig: BotConfig
         BotUsername: UserUsername
         Message: Message
         MessageText: string
@@ -197,7 +198,7 @@ module Processing =
         |> Option.bind ^ fun (botUsername, message, username, text) ->
             message.Chat.Username
             |> Option.map ^ fun chatUsername -> {
-                UpdateContext = context
+                BotConfig = context.Config
                 BotUsername = %botUsername
                 Message = message
                 MessageText = text
@@ -213,7 +214,7 @@ module Processing =
             let parsedMessage = Parser.parse %context.BotUsername context.MessageText
             match parsedMessage with
             | BotCommand(Command(Usernames(usernames), Ban(duration))) ->
-                do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
+                do! deleteMessage context.BotConfig context.Message.Chat.Id context.Message.MessageId
                 
                 let until =
                     match duration with
@@ -226,7 +227,7 @@ module Processing =
                     [for user in usernames do
                         if userCanBeBanned botSettings user then
                             for chat in botSettings.ChatsToMonitor.Set do
-                                yield ApiExt.restrictUser context.UpdateContext chat user until
+                                yield ApiExt.restrictUser context.BotConfig chat user until
                         else
                             yield sprintf "Cannot ban admin @%s" user
                                   |> (Result.Error >> async.Return)]
@@ -250,15 +251,15 @@ module Processing =
                     
                 do! concatErrors requestsResult
                     |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
-                    |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
+                    |> ApiExt.sendMessage botSettings.ChannelId context.BotConfig
                     
             | BotCommand(Command(Usernames(usernames), Unban)) ->
-                do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
+                do! deleteMessage context.BotConfig context.Message.Chat.Id context.Message.MessageId
                 
                 let! requestsResult = 
                     [for chat in botSettings.ChatsToMonitor.Set do
                         for user in usernames do
-                            yield ApiExt.unrestrictUser context.UpdateContext chat user]
+                            yield ApiExt.unrestrictUser context.BotConfig chat user]
                     |> Async.Parallel
                     
                 let message =
@@ -273,29 +274,21 @@ module Processing =
                     
                 do! concatErrors requestsResult
                     |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
-                    |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
+                    |> ApiExt.sendMessage botSettings.ChannelId context.BotConfig
             | IgnoreCommand -> ()
         | CommandNotAllowed -> ()
     }
     
-    let processAdminCommand (botSettings: BotSettings) (context: UpdateContext) fileId = async {
-        let! file = 
-            Api.getFile fileId 
-            |> callApiWithDefaultRetry context
-
-        match file with
-        | Ok data ->
-            let uri =
-                let filePath = Option.get data.FilePath
-                sprintf "https://api.telegram.org/file/bot%s/%s" botSettings.Token filePath
-            let! stream = botSettings.ProxyClient.GetStreamAsync(uri) |> Async.AwaitTask
+    let processAdminCommand (botSettings: BotSettings) (config: BotConfig) fileId = async {
+        match! ApiExt.prepareAndDownloadFile config fileId with
+        | Ok stream ->
             let users = JsonNet.deserializeFromStream<DataAccess.User[]>(stream)
             do! Datastore.upsertUsers users
             do! "Updated user database"
-                |> ApiExt.sendMessage botSettings.ChannelId context
+                |> ApiExt.sendMessage botSettings.ChannelId config
         | Error e ->
             do! sprintf "Failed to download file. Description: %s" e.Description
-                |> ApiExt.sendMessage botSettings.ChannelId context
+                |> ApiExt.sendMessage botSettings.ChannelId config
     }
     
     let iterReplyToMessage fn (context: UpdateContext) (reply: ReplyToMessage) =
@@ -320,7 +313,7 @@ module Processing =
             if reply.ReplyToMessage.From = reply.Message.From then
                 reply.ReplyToMessage.NewChatMember
                 |> Option.map ^ fun user -> 
-                     { UpdateContext = context
+                     { BotConfig = context.Config
                        BotUsername = %botUsername
                        Message = message
                        MessageText = text
@@ -331,7 +324,7 @@ module Processing =
             else
                 match reply.ReplyToMessage.From with
                 | Some from -> 
-                  { UpdateContext = context
+                  { BotConfig = context.Config
                     BotUsername = %botUsername
                     Message = message
                     MessageText = text
@@ -343,7 +336,7 @@ module Processing =
                 | None ->
                    reply.ReplyToMessage.NewChatMember
                    |> Option.map ^ fun user -> 
-                        { UpdateContext = context
+                        { BotConfig = context.Config
                           BotUsername = %botUsername
                           Message = message
                           MessageText = text
@@ -363,13 +356,13 @@ module Processing =
                 return "unknown"
         }
 
-        do! deleteMessage context.UpdateContext context.ReplyToMessage.Chat.Id context.ReplyToMessage.MessageId
+        do! deleteMessage context.BotConfig context.ReplyToMessage.Chat.Id context.ReplyToMessage.MessageId
                 
         let! requestsResult = 
             let banDuration = DateTime.UtcNow.AddMonths(13)
                     
             [for chat in botSettings.ChatsToMonitor.Set do
-                yield ApiExt.restrictUserById context.UpdateContext chat context.ReplyToUser.Id banDuration]
+                yield ApiExt.restrictUserById context.BotConfig chat context.ReplyToUser.Id banDuration]
             |> Async.Parallel
                 
         let! username = getUsernameByIdForLogging context.ReplyToUser.Id
@@ -383,7 +376,7 @@ module Processing =
                     
         do! concatErrors requestsResult
             |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
-            |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
+            |> ApiExt.sendMessage botSettings.ChannelId context.BotConfig
     }
 
     let processReplyMessage (botSettings: BotSettings) (context: ReplyToMessageContext) = async {
@@ -395,7 +388,7 @@ module Processing =
         match (botSettings, context.FromUsername, context.ChatUsername) with
         | CommandAllowed ->
             if context.MessageText.Contains("ban") && context.MessageText.Contains(%context.BotUsername) then
-                do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
+                do! deleteMessage context.BotConfig context.Message.Chat.Id context.Message.MessageId
 
                 match context.ReplyToUser.Username with
                 | Some username -> 
@@ -403,7 +396,7 @@ module Processing =
                         do! banUserOnReplyMessage botSettings context
                     else
                         do! sprintf "Cannot ban admin @%s" context.ReplyToUser.Username.Value 
-                            |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
+                            |> ApiExt.sendMessage botSettings.ChannelId context.BotConfig
                 | None -> 
                     do! banUserOnReplyMessage botSettings context
         | CommandNotAllowed -> ()

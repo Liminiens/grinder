@@ -32,7 +32,6 @@ type AllowedUsers =
 
 type BotSettings = {
     Token: string
-    ProxyClient: HttpClient
     ChatsToMonitor: ChatsToMonitor
     AllowedUsers: AllowedUsers
     ChannelId: TelegramChatId
