@@ -1,8 +1,10 @@
 module Grinder.FunogramExt
 
 open System
+open Grinder.Types
 open Funogram.Api
 open Funogram.Bot
+open FSharp.UMX
 open Funogram.RequestsTypes
 open Funogram.Types
 
@@ -89,7 +91,7 @@ module ApiExt =
             return Error <| sprintf "Couldn't resolve username @%s" username
     }
 
-    let sendMessage chatId context text =
-        sendMessageBase (ChatId.Int chatId) text None None None None None
+    let sendMessage (chatId: TelegramChatId) context text =
+        sendMessageBase (ChatId.Int %chatId) text None None None None None
         |> callApiWithDefaultRetry context
         |> Async.Ignore  
