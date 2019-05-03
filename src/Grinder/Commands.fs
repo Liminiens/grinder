@@ -167,7 +167,7 @@ module Processing =
         |> callApiWithDefaultRetry context
         |> Async.Ignore
     
-    let private concatErros results =
+    let private concatErrors results =
         let _, errors = 
             results
             |> Result.partition
@@ -240,7 +240,7 @@ module Processing =
                         |> String.join ", "
                     sprintf "Banned %s in chats %s until %s UTC" usernamesText chatsText durationText
                     
-                do! concatErros requestsResult
+                do! concatErrors requestsResult
                     |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
                     |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
                     
@@ -263,7 +263,7 @@ module Processing =
                         |> String.join ", "
                     sprintf "Unbanned %s in chats %s" usernamesText chatsText
                     
-                do! concatErros requestsResult
+                do! concatErrors requestsResult
                     |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
                     |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
             | IgnoreCommand -> ()
@@ -381,7 +381,7 @@ module Processing =
                         |> String.join ", "
                     sprintf "Banned %i (%s) in chats %s forever" context.ReplyToUser.Id username chatsText
                     
-                do! concatErros requestsResult
+                do! concatErrors requestsResult
                     |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
                     |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
         | CommandNotAllowed -> ()
