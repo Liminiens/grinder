@@ -211,7 +211,7 @@ module Processing =
             | BotCommand(Command(Usernames(usernames), Ban(duration))) ->
                 do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
                 
-                let untill =
+                let until =
                     match duration with
                     | Forever ->
                         DateTime.UtcNow.AddMonths(13)
@@ -221,15 +221,15 @@ module Processing =
                 let! requestsResult = 
                     [for chat in botSettings.ChatsToMonitor.Set do
                         for user in usernames do
-                            yield ApiExt.restrictUser context.UpdateContext chat user untill]
+                            yield ApiExt.restrictUser context.UpdateContext chat user until]
                     |> Async.Parallel
                     
                 let message =
                     let durationText =
-                        if untill > DateTime.UtcNow.AddMonths(12) then
+                        if until > DateTime.UtcNow.AddYears(1) then
                             "forever"
                         else
-                            untill.ToString("yyyy-MM-dd HH:mm:ss")
+                            until.ToString("yyyy-MM-dd HH:mm:ss")
                             
                     let usernamesText =
                         usernames
