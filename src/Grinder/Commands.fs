@@ -305,7 +305,7 @@ module Processing =
                             if userCanBeBanned botSettings user then
                                 yield ApiExt.restrictUser context.UpdateContext chat user time
                             else
-                                sprintf "Cannot ban admin %s" user |> ignore]
+                                yield async.Return (Result.Error <| sprintf "Cannot ban admin @%s" user) ]
                     |> Async.Parallel
                     
                 let message =
