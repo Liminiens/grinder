@@ -300,12 +300,12 @@ module Processing =
                 do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
                 
                 let! requestsResult = 
-                    [for chat in botSettings.ChatsToMonitor.Set do
-                        for user in usernames do
-                            if userCanBeBanned botSettings user then
+                    [for user in usernames do
+                        if userCanBeBanned botSettings user then
+                            for chat in botSettings.ChatsToMonitor.Set do
                                 yield ApiExt.restrictUser context.UpdateContext chat user time
-                            else
-                                yield async.Return (Result.Error <| sprintf "Cannot ban admin @%s" user) ]
+                        else
+                            yield async.Return (Result.Error <| sprintf "Cannot ban admin @%s" user) ]
                     |> Async.Parallel
                     
                 let message =
@@ -446,29 +446,33 @@ module Processing =
             |> Option.defaultValue Async.Unit
         match (botSettings, context.FromUsername, context.ChatUsername) with
         | CommandAllowed ->
-            if context.MessageText.Contains("ban") && context.MessageText.Contains(%context.BotUsername) then
-                do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
-                do! deleteMessage context.UpdateContext context.ReplyToMessage.Chat.Id context.ReplyToMessage.MessageId
+            if context.ReplyToUser.Username.IsNone || userCanBeBanned botSettings context.ReplyToUser.Username.Value then
+                if context.MessageText.Contains("ban") && context.MessageText.Contains(%context.BotUsername) then
+                    do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
+                    do! deleteMessage context.UpdateContext context.ReplyToMessage.Chat.Id context.ReplyToMessage.MessageId
                 
-                let! requestsResult = 
-                    let banDuration = DateTime.UtcNow.AddMonths(13)
+                    let! requestsResult = 
+                        let banDuration = DateTime.UtcNow.AddMonths(13)
                     
-                    [for chat in botSettings.ChatsToMonitor.Set do
-                        yield ApiExt.restrictUserById context.UpdateContext chat context.ReplyToUser.Id banDuration]
-                    |> Async.Parallel
+                        [for chat in botSettings.ChatsToMonitor.Set do
+                            yield ApiExt.restrictUserById context.UpdateContext chat context.ReplyToUser.Id banDuration]
+                        |> Async.Parallel
                 
-                let! username = getUsernameByIdForLogging context.ReplyToUser.Id
+                    let! username = getUsernameByIdForLogging context.ReplyToUser.Id
                 
-                let message =
-                    let chatsText =
-                        botSettings.ChatsToMonitor.Set
-                        |> Set.map (sprintf "@%s")
-                        |> String.join ", "
-                    sprintf "Banned %i (%s) in chats %s forever" context.ReplyToUser.Id username chatsText
+                    let message =
+                        let chatsText =
+                            botSettings.ChatsToMonitor.Set
+                            |> Set.map (sprintf "@%s")
+                            |> String.join ", "
+                        sprintf "Banned %i (%s) in chats %s forever" context.ReplyToUser.Id username chatsText
                     
-                do! concatErros requestsResult
-                    |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
-                    |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
+                    do! concatErros requestsResult
+                        |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
+                        |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
+            else
+                do! (sprintf "Cannot ban admin @%s" context.ReplyToUser.Username.Value 
+                    |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext)
         | CommandNotAllowed -> ()
     }
     
