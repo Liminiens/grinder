@@ -311,7 +311,8 @@ module Processing =
                             match (botSettings, user) with
                             | UserCanBeBanned ->
                                 yield ApiExt.restrictUser context.UpdateContext chat user time
-                            | UserCannotBeBanned -> () ]
+                            | UserCannotBeBanned -> 
+                                sprintf "Cannot ban admin %s" user |> ignore]
                     |> Async.Parallel
                     
                 let message =
