@@ -245,16 +245,10 @@ module Processing =
             CommandAllowed
         else
             CommandNotAllowed
-    
-    let private (|UserCanBeBanned|UserCannotBeBanned|) (botSettings: BotSettings, username) =
-        let doesAdminListContainThisUser username = 
-            botSettings.AllowedUsers.Set 
-            |> Set.contains username
-        
-        if doesAdminListContainThisUser username then    
-            UserCannotBeBanned
-        else
-            UserCanBeBanned
+
+    let private userCanBeBanned botSettings username =
+        botSettings.AllowedUsers.Set
+        |> Set.contains username
 
     let private deleteMessage context chatId messageId =
         Api.deleteMessage chatId messageId
@@ -308,10 +302,9 @@ module Processing =
                 let! requestsResult = 
                     [for chat in botSettings.ChatsToMonitor.Set do
                         for user in usernames do
-                            match (botSettings, user) with
-                            | UserCanBeBanned ->
+                            if userCanBeBanned botSettings user then
                                 yield ApiExt.restrictUser context.UpdateContext chat user time
-                            | UserCannotBeBanned -> 
+                            else
                                 sprintf "Cannot ban admin %s" user |> ignore]
                     |> Async.Parallel
                     
