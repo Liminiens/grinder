@@ -252,9 +252,9 @@ module Processing =
             |> Set.contains username
         
         if doesAdminListContainThisUser username then    
-            UserCanBeBanned
-        else
             UserCannotBeBanned
+        else
+            UserCanBeBanned
 
     let private deleteMessage context chatId messageId =
         Api.deleteMessage chatId messageId
