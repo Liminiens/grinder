@@ -1,8 +1,9 @@
 ﻿namespace Grinder
 
-open Grinder.DataAccess
 open Grinder
+open Grinder.DataAccess
 open Grinder.Commands
+open Grinder.Types
 open Funogram.Api
 open Funogram.Bot
 open Funogram.Types
@@ -12,6 +13,7 @@ module Program =
     open System.IO
     open MihaZupan
     open Newtonsoft.Json
+    open FSharp.UMX
     
     [<CLIMutable>]
     type Socks5Configuration = {
@@ -41,7 +43,7 @@ module Program =
         let fromUpdate (settings: BotSettings)  (update: Update)=
             update.Message
             |> Option.map ^ fun message ->
-                if message.Chat.Id = settings.AdminUserId then
+                if message.Chat.Id = %settings.AdminUserId then
                     match message.Document with
                     | Some document ->
                         NewAdminPrivateMessage document
@@ -66,9 +68,9 @@ module Program =
                 |> Option.map ^ fun newMessage -> async {
                     match newMessage with
                     | NewAdminPrivateMessage document ->
-                        do! Processing.iterAdminCommand settings context document.FileId
+                        do! Processing.processAdminCommand settings context document.FileId
                     | NewUsersAdded users ->
-                        do! Processing.iterNewUsersCommand users
+                        do! Processing.processNewUsersCommand users
                     | NewMessage message ->
                         do! Processing.iterTextMessage (Processing.processTextCommand settings) context message
                     | ReplyToMessage replyToMessage ->
@@ -101,10 +103,10 @@ module Program =
             let settings = {
                 Token = config.Token
                 ProxyClient = client
-                ChatsToMonitor = config.ChatsToMonitor
-                AllowedUsers = config.AllowedUsers
-                ChannelId = config.ChannelId
-                AdminUserId = config.AdminUserId
+                ChatsToMonitor = ChatsToMonitor.Create config.ChatsToMonitor
+                AllowedUsers = AllowedUsers.Create config.AllowedUsers
+                ChannelId = %config.ChannelId
+                AdminUserId = %config.AdminUserId
             }
             do! startBot botConfiguration (onUpdate settings) None
                 |> Async.StartChild

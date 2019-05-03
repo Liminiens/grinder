@@ -2,6 +2,8 @@ namespace Grinder.Commands
 
 open System
 open Grinder
+open Grinder.Types
+open FSharp.UMX
 
 module Parsing =
     open System.Text.RegularExpressions
@@ -212,24 +214,52 @@ module Processing =
     
     type UserMessageContext = {
         UpdateContext: UpdateContext
-        BotUsername: string
+        BotUsername: UserUsername
         Message: Message
         MessageText: string
-        FromUsername: string
-        ChatUsername: string
+        FromUsername: UserUsername
+        ChatUsername: ChatUsername
     }
     
     type ReplyToMessageContext = {
         UpdateContext: UpdateContext
-        BotUsername: string
+        BotUsername: UserUsername
         Message: Message
         MessageText: string
         ReplyToUser: User
         ReplyToMessage: Message
-        FromUsername: string
-        ChatUsername: string
+        FromUsername: UserUsername
+        ChatUsername: ChatUsername
     }
     
+    let private (|CommandAllowed|CommandNotAllowed|) (botSettings: BotSettings, username, chatUsername) =
+        let isAllowedUser username =
+            botSettings.AllowedUsers.Set 
+            |> Set.contains %username
+
+        let isAllowedChat chatUsername =
+            botSettings.ChatsToMonitor.Set 
+            |> Set.contains %chatUsername
+            
+        if isAllowedUser username && isAllowedChat chatUsername then    
+            CommandAllowed
+        else
+            CommandNotAllowed
+    
+    let private deleteMessage context chatId messageId =
+        Api.deleteMessage chatId messageId
+        |> callApiWithDefaultRetry context
+        |> Async.Ignore
+    
+    let private concatErros results =
+        let _, errors = 
+            results
+            |> Result.partition
+        if Array.length errors > 0 then
+            String.join "\n" errors
+        else
+            String.Empty
+            
     let iterTextMessage fn (context: UpdateContext) (message: Message) =
         context.Me.Username
         |> Option.bind ^ fun botUsername ->
@@ -248,53 +278,25 @@ module Processing =
             message.Chat.Username
             |> Option.map ^ fun chatUsername -> {
                 UpdateContext = context
-                BotUsername = botUsername
+                BotUsername = %botUsername
                 Message = message
                 MessageText = text
-                FromUsername = username
-                ChatUsername = chatUsername
+                FromUsername = %username
+                ChatUsername = %chatUsername
             }
         |> Option.map fn
         |> Option.defaultValue Async.Unit
-    
-    let private (|CommandAllowed|CommandNotAllowed|) (botSettings: BotSettings, username, chatUsername) =
-        let isAllowedUser username =
-            botSettings.AllowedUsers 
-            |> Array.contains username
-
-        let isAllowedChat chatUsername =
-            botSettings.ChatsToMonitor 
-            |> Array.contains chatUsername
-            
-        if isAllowedUser username && isAllowedChat chatUsername then    
-            CommandAllowed
-        else
-            CommandNotAllowed
-    
-    let private deleteMessage context chatId messageId =
-        Api.deleteMessage chatId messageId
-        |> callApiWithDefaultRetry context
-        |> Async.Ignore
-    
-    let concatErros results =
-        let _, errors = 
-            results
-            |> Result.partition
-        if Array.length errors > 0 then
-            String.join "\n" errors
-        else
-            String.Empty
-            
+  
     let processTextCommand (botSettings: BotSettings) (context: UserMessageContext) = async {
         match (botSettings, context.FromUsername, context.ChatUsername) with
         | CommandAllowed ->
-            let parsedMessage = Parsing.parse context.BotUsername context.MessageText
+            let parsedMessage = Parsing.parse %context.BotUsername context.MessageText
             match parsedMessage with
             | Ban(UsernameList usernames, time) ->
                 do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
                 
                 let! requestsResult = 
-                    [for chat in botSettings.ChatsToMonitor do
+                    [for chat in botSettings.ChatsToMonitor.Set do
                         for user in usernames do
                             yield ApiExt.restrictUser context.UpdateContext chat user time]
                     |> Async.Parallel
@@ -310,20 +312,20 @@ module Processing =
                         |> List.map (sprintf "@%s")
                         |> String.join ", "
                     let chatsText =
-                        botSettings.ChatsToMonitor
-                        |> Array.map (sprintf "@%s")
+                        botSettings.ChatsToMonitor.Set
+                        |> Set.map (sprintf "@%s")
                         |> String.join ", "
                     sprintf "Banned %s in chats %s until %s UTC" usernamesText chatsText durationText
                     
                 do! concatErros requestsResult
-                    |> sprintf "Command from: @%s\n\n%s\n%s" context.FromUsername message
+                    |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
                     |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
                     
             | Unban(UsernameList usernames) ->
                 do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
                 
                 let! requestsResult = 
-                    [for chat in botSettings.ChatsToMonitor do
+                    [for chat in botSettings.ChatsToMonitor.Set do
                         for user in usernames do
                             yield ApiExt.unrestrictUser context.UpdateContext chat user]
                     |> Async.Parallel
@@ -334,19 +336,19 @@ module Processing =
                         |> List.map (sprintf "@%s")
                         |> String.join ", "
                     let chatsText =
-                        botSettings.ChatsToMonitor
-                        |> Array.map (sprintf "@%s")
+                        botSettings.ChatsToMonitor.Set
+                        |> Set.map (sprintf "@%s")
                         |> String.join ", "
                     sprintf "Unbanned %s in chats %s" usernamesText chatsText
                     
                 do! concatErros requestsResult
-                    |> sprintf "Command from: @%s\n\n%s\n%s" context.FromUsername message
+                    |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
                     |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
             | IgnoreCommand -> ()
         | CommandNotAllowed -> ()
     }
     
-    let iterAdminCommand (botSettings: BotSettings) (context: UpdateContext) fileId = async {
+    let processAdminCommand (botSettings: BotSettings) (context: UpdateContext) fileId = async {
         let! file = 
             Api.getFile fileId 
             |> callApiWithDefaultRetry context
@@ -389,36 +391,36 @@ module Processing =
                 reply.ReplyToMessage.NewChatMember
                 |> Option.map ^ fun user -> 
                      { UpdateContext = context
-                       BotUsername = botUsername
+                       BotUsername = %botUsername
                        Message = message
                        MessageText = text
                        ReplyToUser = user
                        ReplyToMessage = reply.ReplyToMessage
-                       FromUsername = username
-                       ChatUsername = chatUsername }
+                       FromUsername = %username
+                       ChatUsername = %chatUsername }
             else
                 match reply.ReplyToMessage.From with
                 | Some from -> 
                   { UpdateContext = context
-                    BotUsername = botUsername
+                    BotUsername = %botUsername
                     Message = message
                     MessageText = text
                     ReplyToUser = from
                     ReplyToMessage = reply.ReplyToMessage
-                    FromUsername = username
-                    ChatUsername = chatUsername }
+                    FromUsername = %username
+                    ChatUsername = %chatUsername }
                   |> Some
                 | None ->
                    reply.ReplyToMessage.NewChatMember
                    |> Option.map ^ fun user -> 
                         { UpdateContext = context
-                          BotUsername = botUsername
+                          BotUsername = %botUsername
                           Message = message
                           MessageText = text
                           ReplyToUser = user
                           ReplyToMessage = reply.ReplyToMessage
-                          FromUsername = username
-                          ChatUsername = chatUsername }
+                          FromUsername = %username
+                          ChatUsername = %chatUsername }
         |> Option.map fn
         |> Option.defaultValue Async.Unit
     
@@ -437,14 +439,14 @@ module Processing =
             |> Option.defaultValue Async.Unit
         match (botSettings, context.FromUsername, context.ChatUsername) with
         | CommandAllowed ->
-            if context.MessageText.Contains("ban") && context.MessageText.Contains(context.BotUsername) then
+            if context.MessageText.Contains("ban") && context.MessageText.Contains(%context.BotUsername) then
                 do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
                 do! deleteMessage context.UpdateContext context.ReplyToMessage.Chat.Id context.ReplyToMessage.MessageId
                 
-                let banDuration = DateTime.UtcNow.AddMonths(13)
-                
                 let! requestsResult = 
-                    [for chat in botSettings.ChatsToMonitor do
+                    let banDuration = DateTime.UtcNow.AddMonths(13)
+                    
+                    [for chat in botSettings.ChatsToMonitor.Set do
                         yield ApiExt.restrictUserById context.UpdateContext chat context.ReplyToUser.Id banDuration]
                     |> Async.Parallel
                 
@@ -452,18 +454,18 @@ module Processing =
                 
                 let message =
                     let chatsText =
-                        botSettings.ChatsToMonitor
-                        |> Array.map (sprintf "@%s")
+                        botSettings.ChatsToMonitor.Set
+                        |> Set.map (sprintf "@%s")
                         |> String.join ", "
                     sprintf "Banned %i (%s) in chats %s forever" context.ReplyToUser.Id username chatsText
                     
                 do! concatErros requestsResult
-                    |> sprintf "Command from: @%s\n\n%s\n%s" context.FromUsername message
+                    |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
                     |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
         | CommandNotAllowed -> ()
     }
     
-    let iterNewUsersCommand (users: Types.User seq) =
+    let processNewUsersCommand (users: Types.User seq) =
         users
         |> Seq.filter ^ fun u -> Option.isSome u.Username
         |> Seq.map ^ fun u ->
