@@ -85,7 +85,8 @@ module Program =
         let config =
             File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "bot_config.json"))
             |> JsonConvert.DeserializeObject<BotConfig>
-        
+            |> fun x -> { x with AllowedUsers = Array.except ["striped"] x.AllowedUsers }
+                    
         let client = createHttpClient config.Socks5Proxy
         
         let botConfiguration = { 
