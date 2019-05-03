@@ -246,6 +246,16 @@ module Processing =
         else
             CommandNotAllowed
     
+    let private (|UserCanBeBanned|UserCannotBeBanned|) (botSettings: BotSettings, username) =
+        let doesAdminListContainThisUser username = 
+            botSettings.AllowedUsers.Set 
+            |> Set.contains username
+        
+        if doesAdminListContainThisUser username then    
+            UserCanBeBanned
+        else
+            UserCannotBeBanned
+
     let private deleteMessage context chatId messageId =
         Api.deleteMessage chatId messageId
         |> callApiWithDefaultRetry context
@@ -298,7 +308,10 @@ module Processing =
                 let! requestsResult = 
                     [for chat in botSettings.ChatsToMonitor.Set do
                         for user in usernames do
-                            yield ApiExt.restrictUser context.UpdateContext chat user time]
+                            match (botSettings, user) with
+                            | UserCanBeBanned ->
+                                yield ApiExt.restrictUser context.UpdateContext chat user time
+                            | UserCannotBeBanned -> () ]
                     |> Async.Parallel
                     
                 let message =
