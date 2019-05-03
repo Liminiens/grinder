@@ -5,123 +5,21 @@ open Grinder
 open Grinder.Types
 open FSharp.UMX
 
-module Parsing =
-    open System.Text.RegularExpressions
+module Parser =
+    open FParsec
+
+    type Usernames = Usernames of string list
+
+    type TimeFraction =
+        | Minutes of uint32
+        | Days of uint32
+        | Months of uint32
     
-    type CommandText =
-        | BanCommandText of string
-        | UnbanCommandText of string
+    type BanDuration =
+        | Forever
+        | Timed of DateTime
         
-    type UsernameList = UsernameList of string list
-    
-    type Command =
-        | Ban of  UsernameList * DateTime
-        | Unban of UsernameList
-        | IgnoreCommand
-        
-    module CommandType =
-        let [<Literal>] banText = "ban"
-        let [<Literal>] unbanText = "unban"
-            
-        let parse (text: string) =
-            if text.StartsWith(banText) then
-                text.Substring(banText.Length, text.Length - banText.Length).Trim()
-                |> BanCommandText
-                |> Some
-            elif text.StartsWith(unbanText) then
-                text.Substring(unbanText.Length, text.Length - unbanText.Length).Trim()
-                |> UnbanCommandText
-                |> Some
-            else
-                None
-    
-    type ParsedCommand = {
-        Usernames: UsernameList
-        Text: CommandText
-    }
-
-    type MessageToBotValidationResult = 
-        | ValidMessage of string
-        | InvalidMessage
-            
-    type CommandParsingResult =
-        | Command of ParsedCommand
-        | InvalidCommand
-    
-    let validate (botUsername: string) (text: string) = 
-        let text = text.Trim()
-        let botUsername = sprintf "@%s" botUsername
-        if text.StartsWith(botUsername) then
-            let message = text.Substring(botUsername.Length, text.Length - botUsername.Length).Trim()
-            ValidMessage message
-        else
-            InvalidMessage
-   
-    let MinutesRegex = new Regex("(?<value>\d+)\s+min(s|utes)?", RegexOptions.Compiled)
-    
-    let DaysRegex = new Regex("(?<value>\d+)\s+day(s)?", RegexOptions.Compiled)
-    
-    let MonthsRegex = new Regex("(?<value>\d+)\s+month(s)?", RegexOptions.Compiled)
-    
-    let NegativeNumberRegex = new Regex("-\d+", RegexOptions.Compiled)
-
-    type Minutes =
-        private Minutes of int32
-            static member Parse(text) =
-                let result = MinutesRegex.Match(text)
-                if result.Groups.["value"].Success then
-                    let value = int32 result.Groups.["value"].Value
-                    if value > 0 then 
-                        value |> Minutes |> Some
-                    else
-                        None
-                else
-                    None
-            
-            member __.Value =
-                let (Minutes value) = __
-                value
-
-    type Days =
-        private Days of int32
-            static member Parse(text) =
-                let result = DaysRegex.Match(text)
-                if result.Groups.["value"].Success then
-                    let value = int32 result.Groups.["value"].Value
-                    if value > 0 then 
-                        value |> Days |> Some
-                    else
-                        None
-                else
-                    None
-            
-            member __.Value =
-                let (Days value) = __
-                value
-
-    type Months =
-        private Months of int32
-            static member Parse(text) =
-                let result = MonthsRegex.Match(text)
-                if result.Groups.["value"].Success then
-                    let value = int32 result.Groups.["value"].Value
-                    if value > 0 then 
-                        value |> Months |> Some
-                    else
-                        None
-                else
-                    None
-            
-            member __.Value =
-                let (Months value) = __
-                value
-    
-    type Fraction =
-        | Minutes of int32
-        | Days of int32
-        | Months of int32
-    
-    type Duration() =
+    type TimeFractionSummator() =
         let mutable value = Unchecked.defaultof<DateTime>
         
         member __.IsSet() =
@@ -139,70 +37,88 @@ module Parsing =
             | Days days ->
                 value <- value.AddDays(float days)
             | Months months ->
-                value <- value.AddMonths(months)
-    
-    let getUsernamesAndCommand text =
-        let matches = Regex.Matches(text, "@(\w|\d)+")
-        let usernames = 
-            matches
-            |> Seq.map ^ fun m -> m.Value
-            |> List.ofSeq
-        match List.length usernames with
-        | 0 -> 
-            InvalidCommand
-        | _ ->
-            let lastMatch = matches |> Seq.maxBy ^ fun el -> el.Index
-            let commandText =
-                text.Substring(lastMatch.Index + lastMatch.Length, text.Length - (lastMatch.Index + lastMatch.Length))
-                    .Trim()
-            match CommandType.parse commandText with
-            | Some(command) ->
-                let usernames = 
-                    usernames
-                    |> List.map ^ fun username -> username.TrimStart('@')
-                    |> UsernameList
-                Command { Usernames = usernames
-                          Text = command }
-            | None ->
-                InvalidCommand
+                value <- value.AddMonths(int32 months)
+                
+    type CommandAction =
+        | Ban of BanDuration
+        | Unban
 
-    let parseBanCommand usernames time =
-        if not <| NegativeNumberRegex.Match(time).Success then
-            let duration = Duration()
-            Days.Parse time
-            |> Option.iter ^ fun v -> duration.Add(Days v.Value)
-            Months.Parse time
-            |> Option.iter ^ fun v -> duration.Add(Months v.Value)
-            Minutes.Parse time
-            |> Option.iter ^ fun v ->
-                let value = 
-                    if v.Value < 5 && (not <| duration.IsSet()) then 5 else v.Value
-                duration.Add(Minutes value)
-            if duration.IsSet() then
-                Ban (usernames, duration.GetValue())
-            else
-                IgnoreCommand
-        else
-            IgnoreCommand
+    type Command = Command of Usernames * CommandAction
+
+    let str s = pstring s
+        
+    let pminutes: Parser<uint32, unit> =
+        (puint32 .>> spaces) .>> (regex "min(s|utes)?")
+        |>> (fun v -> if v < 5u then 6u else v)
+        
+    let pdays: Parser<uint32, unit> =
+        (puint32 .>> spaces) .>> (regex "day(s)?")
+        
+    let pmonths: Parser<uint32, unit> =
+        (puint32 .>> spaces) .>> (regex "month(s)?")
+        
+    let pusername: Parser<string, unit> =
+        let validate char =
+            (not <| Char.IsWhiteSpace(char)) && char <> '@'
+        pipe2 (str "@") (manySatisfy validate) (+)
+
+    let pbotUsername botUsername : Parser<string, unit> =
+        spaces >>. (str botUsername) .>> spaces
+      
+    let many1Usernames: Parser<string list, unit> =
+        many1 (pusername .>> spaces)
+    
+    let sumTimedFractions (fractions: TimeFraction list) =
+        let summator = TimeFractionSummator()
+        for fraction in fractions do
+            summator.Add(fraction)
+        Timed <| summator.GetValue()
+        
+    let pdistinctTimeFractions: Parser<BanDuration, unit> =
+        [
+            pminutes |>> Minutes .>> spaces;
+            pmonths |>> Months .>> spaces;
+            pdays |>> Days .>> spaces
+        ]
+        |> List.map attempt
+        |> choice
+        |> many
+        |>> List.distinct
+        |>> sumTimedFractions
+    
+    let pforeverBan: Parser<BanDuration, unit>  =
+        [
+            spaces >>. eof >>% Forever;
+            spaces >>. str "forever" >>% Forever;
+        ]
+        |> List.map attempt
+        |> choice
+    
+    let pban: Parser<BanDuration, unit> =
+        str "ban" .>> spaces >>. (pforeverBan <|> pdistinctTimeFractions)
+
+    let punban: Parser<CommandAction, unit> =
+        str "unban" .>> spaces >>% Unban
+        
+    let pcommandAction: Parser<CommandAction, unit> =
+        (pban |>> Ban) <|> punban
+
+    let parseCommand botUsername =
+        pbotUsername botUsername >>.
+        pipe2 many1Usernames pcommandAction (fun usernames command -> Command(Usernames(usernames), command))
+        
+    let runCommandParser botUsername str: ParserResult<Command, unit> =
+        run (parseCommand botUsername) str
+    
+    type CommandParsingResult =
+        | BotCommand of Command
+        | IgnoreCommand
     
     let parse botUsername text =
-        match validate botUsername text with
-        | ValidMessage text -> 
-            match getUsernamesAndCommand text with
-            | Command data ->
-                match data.Text with
-                | BanCommandText commandText ->
-                    match commandText with
-                    | ""
-                    | "forever" ->
-                        Ban (data.Usernames, DateTime.UtcNow.AddMonths(13))
-                    | time ->
-                        parseBanCommand data.Usernames time
-                | UnbanCommandText _ ->
-                    Unban data.Usernames
-            | InvalidCommand ->
-                IgnoreCommand  
-        | InvalidMessage ->
+        match runCommandParser botUsername text with
+        | Success(result, _, _)   ->
+            BotCommand result
+        | Failure(errorMsg, _, _) ->
             IgnoreCommand
             
 module Processing =
@@ -210,7 +126,7 @@ module Processing =
     open Funogram.Bot
     open Funogram.Types
     open Grinder.FunogramExt
-    open Parsing
+    open Parser
     
     type UserMessageContext = {
         UpdateContext: UpdateContext
@@ -251,7 +167,7 @@ module Processing =
         |> callApiWithDefaultRetry context
         |> Async.Ignore
     
-    let private concatErros results =
+    let private concatErrors results =
         let _, errors = 
             results
             |> Result.partition
@@ -290,26 +206,33 @@ module Processing =
     let processTextCommand (botSettings: BotSettings) (context: UserMessageContext) = async {
         match (botSettings, context.FromUsername, context.ChatUsername) with
         | CommandAllowed ->
-            let parsedMessage = Parsing.parse %context.BotUsername context.MessageText
+            let parsedMessage = Parser.parse %context.BotUsername context.MessageText
             match parsedMessage with
-            | Ban(UsernameList usernames, time) ->
+            | BotCommand(Command(Usernames(usernames), Ban(duration))) ->
                 do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
+                
+                let until =
+                    match duration with
+                    | Forever ->
+                        DateTime.UtcNow.AddMonths(13)
+                    | Timed date ->
+                        date
                 
                 let! requestsResult = 
                     [for chat in botSettings.ChatsToMonitor.Set do
                         for user in usernames do
-                            yield ApiExt.restrictUser context.UpdateContext chat user time]
+                            yield ApiExt.restrictUser context.UpdateContext chat user until]
                     |> Async.Parallel
                     
                 let message =
                     let durationText =
-                        if time > DateTime.UtcNow.AddMonths(12) then
+                        if until > DateTime.UtcNow.AddYears(1) then
                             "forever"
                         else
-                            time.ToString("yyyy-MM-dd HH:mm:ss")
+                            until.ToString("yyyy-MM-dd HH:mm:ss")
+                            
                     let usernamesText =
                         usernames
-                        |> List.map (sprintf "@%s")
                         |> String.join ", "
                     let chatsText =
                         botSettings.ChatsToMonitor.Set
@@ -317,11 +240,11 @@ module Processing =
                         |> String.join ", "
                     sprintf "Banned %s in chats %s until %s UTC" usernamesText chatsText durationText
                     
-                do! concatErros requestsResult
+                do! concatErrors requestsResult
                     |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
                     |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
                     
-            | Unban(UsernameList usernames) ->
+            | BotCommand(Command(Usernames(usernames), Unban)) ->
                 do! deleteMessage context.UpdateContext context.Message.Chat.Id context.Message.MessageId
                 
                 let! requestsResult = 
@@ -333,7 +256,6 @@ module Processing =
                 let message =
                     let usernamesText =
                         usernames
-                        |> List.map (sprintf "@%s")
                         |> String.join ", "
                     let chatsText =
                         botSettings.ChatsToMonitor.Set
@@ -341,7 +263,7 @@ module Processing =
                         |> String.join ", "
                     sprintf "Unbanned %s in chats %s" usernamesText chatsText
                     
-                do! concatErros requestsResult
+                do! concatErrors requestsResult
                     |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
                     |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
             | IgnoreCommand -> ()
@@ -459,7 +381,7 @@ module Processing =
                         |> String.join ", "
                     sprintf "Banned %i (%s) in chats %s forever" context.ReplyToUser.Id username chatsText
                     
-                do! concatErros requestsResult
+                do! concatErrors requestsResult
                     |> sprintf "Command from: @%s\n\n%s\n%s" %context.FromUsername message
                     |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
         | CommandNotAllowed -> ()
