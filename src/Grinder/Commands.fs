@@ -57,15 +57,16 @@ module Parser =
     let pmonths: Parser<uint32, unit> =
         (puint32 .>> spaces) .>> (regex "month(s)?")
         
-    let username: Parser<string, unit> =
-        pipe2 (str "@") (manySatisfy (Char.IsWhiteSpace >> not)) (+)
+    let pusername: Parser<string, unit> =
+        let validate char =
+            (not <| Char.IsWhiteSpace(char)) && char <> '@'
+        pipe2 (str "@") (manySatisfy validate) (+)
 
-    let startsWithBotUsername botUsername : Parser<string, unit> =
-        (str botUsername) .>> spaces
+    let pbotUsername botUsername : Parser<string, unit> =
+        spaces >>. (str botUsername) .>> spaces
       
     let many1Usernames: Parser<string list, unit> =
-        many1 (username .>> spaces)
-    
+        many1 (pusername .>> spaces)
     
     let sumTimedFractions (fractions: TimeFraction list) =
         let summator = TimeFractionSummator()
@@ -73,7 +74,7 @@ module Parser =
             summator.Add(fraction)
         Timed <| summator.GetValue()
         
-    let parseDistinctTimeFractions: Parser<BanDuration, unit> =
+    let pdistinctTimeFractions: Parser<BanDuration, unit> =
         [
             pminutes |>> Minutes .>> spaces;
             pmonths |>> Months .>> spaces;
@@ -85,24 +86,25 @@ module Parser =
         |>> List.distinct
         |>> sumTimedFractions
     
-    let parseForverBan: Parser<BanDuration, unit>  =
+    let pforeverBan: Parser<BanDuration, unit>  =
         [
             spaces >>. eof >>% Forever;
-            str "forever" >>% Forever;
+            spaces >>. str "forever" >>% Forever;
         ]
+        |> List.map attempt
         |> choice
     
     let pban: Parser<BanDuration, unit> =
-        str "ban" .>> spaces >>. (parseForverBan <|> parseDistinctTimeFractions)
+        str "ban" .>> spaces >>. (pforeverBan <|> pdistinctTimeFractions)
 
-    let punban: Parser<string, unit> =
-        str "unban" .>> spaces
+    let punban: Parser<CommandAction, unit> =
+        str "unban" .>> spaces >>% Unban
         
     let pcommandAction: Parser<CommandAction, unit> =
-        (pban |>> Ban) <|> (punban >>% Unban)
+        (pban |>> Ban) <|> punban
 
     let parseCommand botUsername =
-        startsWithBotUsername botUsername >>.
+        pbotUsername botUsername >>.
         pipe2 many1Usernames pcommandAction (fun usernames command -> Command(Usernames(usernames), command))
         
     let runCommandParser botUsername str: ParserResult<Command, unit> =
@@ -231,7 +233,6 @@ module Processing =
                             
                     let usernamesText =
                         usernames
-                        |> List.map (sprintf "@%s")
                         |> String.join ", "
                     let chatsText =
                         botSettings.ChatsToMonitor.Set
@@ -255,7 +256,6 @@ module Processing =
                 let message =
                     let usernamesText =
                         usernames
-                        |> List.map (sprintf "@%s")
                         |> String.join ", "
                     let chatsText =
                         botSettings.ChatsToMonitor.Set
