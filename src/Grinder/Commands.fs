@@ -305,7 +305,8 @@ module Processing =
                             for chat in botSettings.ChatsToMonitor.Set do
                                 yield ApiExt.restrictUser context.UpdateContext chat user time
                         else
-                            yield async.Return (Result.Error <| sprintf "Cannot ban admin @%s" user) ]
+                            yield sprintf "Cannot ban admin @%s" user
+                                  |> (Result.Error >> async.Return)]
                     |> Async.Parallel
                     
                 let message =
@@ -479,10 +480,10 @@ module Processing =
                     if userCanBeBanned botSettings username then
                         do! banUserOnReplyMessage botSettings context
                     else
-                        do! (sprintf "Cannot ban admin @%s" context.ReplyToUser.Username.Value 
-                            |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext)
-                | None -> do! banUserOnReplyMessage botSettings context
-
+                        do! sprintf "Cannot ban admin @%s" context.ReplyToUser.Username.Value 
+                            |> ApiExt.sendMessage botSettings.ChannelId context.UpdateContext
+                | None -> 
+                    do! banUserOnReplyMessage botSettings context
         | CommandNotAllowed -> ()
     }
     
