@@ -2,7 +2,6 @@ namespace Tests
 
 open System
 open Xunit
-open Grinder.Commands
     
 module Assert =
     let Fail() = Assert.True(false)
