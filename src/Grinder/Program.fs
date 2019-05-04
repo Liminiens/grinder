@@ -41,68 +41,45 @@ module Program =
         messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
         messageHandler.UseProxy <- true
         new HttpClient(messageHandler)
-    
-    module NewMessageType =
-        let fromUpdate (settings: BotSettings)  (update: Update)=
-            update.Message
-            |> Option.map ^ fun message ->
-                if message.Chat.Id = %settings.AdminUserId then
-                    match message.Document with
-                    | Some document ->
-                        NewAdminPrivateMessage document
-                    | None ->
-                        IgnoreMessage
-                else
-                    match message.NewChatMembers with
-                    | Some users ->
-                        NewUsersAdded(List.ofSeq users)
-                    | None ->
-                        match message.ReplyToMessage with
-                        | Some reply ->
-                            { Message = message; ReplyToMessage = reply }
-                            |> ReplyToMessage
-                        | None ->
-                            NewMessage message
-                            
+   
+    let createBotApi config (settings: BotSettings) = {
+        new IBotApi with
+            member __.DeleteMessage chatId messageId =
+                Api.deleteMessage %chatId %messageId
+                |> callApiWithDefaultRetry config
+                |> Async.Ignore
+            
+            member __.RestrictUser chatUsername userUsername until =
+                ApiExt.restrictUser config %chatUsername %userUsername until
                 
-    let onUpdate (settings: BotSettings) (context: UpdateContext) =
+            member __.RestrictUserById chatUsername userId until =
+                ApiExt.restrictUserById config %chatUsername %userId until
+                
+            member __.UnrestrictUser chatUsername username =
+                ApiExt.unrestrictUser config %chatUsername %username
+                
+            member __.SendTextToChannel text =
+                ApiExt.sendMessage settings.ChannelId config text
+            
+            member __.PrepareAndDownloadFile fileId =
+                ApiExt.prepareAndDownloadFile config fileId
+    }
+    
+    let dataApi = {
+        new IDataAccessApi with
+            member __.GetUsernameByUserId userId = async {
+                match! Datastore.findUsernameByUserId %userId with
+                | UsernameFound username ->
+                    return Some %(sprintf "@%s" username)
+                | UsernameNotFound ->
+                    return None
+            }
+    }    
+                
+    let onUpdate (settings: BotSettings) (botApi: IBotApi) (dataApi: IDataAccessApi) (context: UpdateContext) =
         async {
-            do! NewMessageType.fromUpdate settings context.Update
+            do! UpdateType.fromUpdate settings context.Update
                 |> Option.map ^ fun newMessage -> async {
-                    let botApi = {
-                        new IBotApi with
-                            member __.DeleteMessage chatId messageId =
-                                Api.deleteMessage %chatId %messageId
-                                |> callApiWithDefaultRetry context.Config
-                                |> Async.Ignore
-                            
-                            member __.RestrictUser chatUsername userUsername until =
-                                ApiExt.restrictUser context.Config %chatUsername %userUsername until
-                                
-                            member __.RestrictUserById chatUsername userId until =
-                                ApiExt.restrictUserById context.Config %chatUsername %userId until
-                                
-                            member __.UnrestrictUser chatUsername username =
-                                ApiExt.unrestrictUser context.Config %chatUsername %username
-                                
-                            member __.SendTextToChannel text =
-                                ApiExt.sendMessage settings.ChannelId context.Config text
-                            
-                            member __.PrepareAndDownloadFile fileId =
-                                ApiExt.prepareAndDownloadFile context.Config fileId
-                    }
-                    
-                    let dataApi = {
-                        new IDataAccessApi with
-                            member __.GetUsernameByUserId userId = async {
-                                match! Datastore.findUsernameByUserId %userId with
-                                | UsernameFound username ->
-                                    return Some %(sprintf "@%s" username)
-                                | UsernameNotFound ->
-                                    return None
-                            }
-                    }
-                    
                     match newMessage with
                     | NewAdminPrivateMessage document ->
                         do! Processing.processAdminCommand settings context.Config document.FileId
@@ -154,7 +131,7 @@ module Program =
                 ChannelId = %config.ChannelId
                 AdminUserId = %config.AdminUserId
             }
-            do! startBot botConfiguration (onUpdate settings) None
+            do! startBot botConfiguration (onUpdate settings (createBotApi botConfiguration settings) dataApi) None
                 |> Async.StartChild
                 |> Async.Ignore
                 

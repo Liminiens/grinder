@@ -4,6 +4,7 @@ open FSharp.UMX
 open System
 open System.IO
 open Funogram.Types
+open Grinder
 
 [<Measure>] type private userUsername
 [<Measure>] type private chatUsername
@@ -55,6 +56,29 @@ type UpdateType =
     | NewUsersAdded of User list
     | NewMessage of Message
     | NewAdminPrivateMessage of Document
+
+[<RequireQualifiedAccess>]   
+module UpdateType =
+    let fromUpdate (settings: BotSettings) (update: Update) =
+        update.Message
+        |> Option.map ^ fun message ->
+            if message.Chat.Id = %settings.AdminUserId then
+                match message.Document with
+                | Some document ->
+                    NewAdminPrivateMessage document
+                | None ->
+                    IgnoreMessage
+            else
+                match message.NewChatMembers with
+                | Some users ->
+                    NewUsersAdded(List.ofSeq users)
+                | None ->
+                    match message.ReplyToMessage with
+                    | Some reply ->
+                        { Message = message; ReplyToMessage = reply }
+                        |> ReplyToMessage
+                    | None ->
+                        NewMessage message
     
 type IBotApi =
     abstract member DeleteMessage: TelegramChatId -> TelegramMessageId -> Async<unit>
