@@ -29,7 +29,7 @@ module Async =
 module String =
     let inline join separator (strings: string seq) =
         String.Join(separator, strings)
-        
+
 [<RequireQualifiedAccess>]      
 module Result =
     let inline partition results =
