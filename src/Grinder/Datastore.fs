@@ -48,4 +48,8 @@ module Datastore =
         }
         |> Async.AwaitTask
         
-    
+open Grinder.Types
+
+type IDataAccessApi =
+    abstract member GetUsernameByUserId: TelegramUserId -> Async<UserUsername option>
+    abstract member UpsertUsers: User seq -> Async<unit>   

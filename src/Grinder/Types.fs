@@ -87,6 +87,3 @@ type IBotApi =
     abstract member UnrestrictUser: ChatUsername -> UserUsername -> Async<Result<unit, string>>
     abstract member SendTextToChannel: string -> Async<unit>
     abstract member PrepareAndDownloadFile: string -> Async<Result<Stream, string>>
-
-type IDataAccessApi =
-    abstract member GetUsernameByUserId: TelegramUserId -> Async<UserUsername option>

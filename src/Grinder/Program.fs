@@ -74,6 +74,9 @@ module Program =
                 | UsernameNotFound ->
                     return None
             }
+            
+            member __.UpsertUsers users =
+                Datastore.upsertUsers users
     }    
                 
     let onUpdate (settings: BotSettings) (botApi: IBotApi) (dataApi: IDataAccessApi) (context: UpdateContext) =

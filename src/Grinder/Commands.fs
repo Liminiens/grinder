@@ -458,6 +458,7 @@ module Processing =
             let! username = async {
                 match context.Username with
                 | Some username ->
+                    do! dataApi.UpsertUsers [DataAccess.User(UserId = %context.UserId, Username = %username)]
                     return username
                 | None ->
                     return! dataApi.GetUsernameByUserId context.UserId
