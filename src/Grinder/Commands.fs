@@ -166,6 +166,7 @@ module Processing =
     let private userCanBeBanned botSettings username =
         botSettings.AllowedUsers.Set
         |> Set.contains username
+        |> not
 
     let private deleteMessage context chatId messageId =
         Api.deleteMessage chatId messageId
