@@ -1,5 +1,6 @@
 ﻿namespace Grinder
 
+open Funogram
 open Grinder
 open Grinder.DataAccess
 open Grinder.Commands
@@ -7,6 +8,7 @@ open Grinder.Types
 open Funogram.Api
 open Funogram.Bot
 open Funogram.Types
+open FunogramExt
     
 module Program =
     open System.Net.Http
@@ -14,6 +16,7 @@ module Program =
     open MihaZupan
     open Newtonsoft.Json
     open FSharp.UMX
+    open Processing
     
     [<CLIMutable>]
     type Socks5Configuration = {
@@ -66,15 +69,61 @@ module Program =
         async {
             do! NewMessageType.fromUpdate settings context.Update
                 |> Option.map ^ fun newMessage -> async {
+                    let botApi = {
+                        new IBotApi with
+                            member __.DeleteMessage chatId messageId =
+                                Api.deleteMessage %chatId %messageId
+                                |> callApiWithDefaultRetry context.Config
+                                |> Async.Ignore
+                            
+                            member __.RestrictUser chatUsername userUsername until =
+                                ApiExt.restrictUser context.Config %chatUsername %userUsername until
+                                
+                            member __.RestrictUserById chatUsername userId until =
+                                ApiExt.restrictUserById context.Config %chatUsername %userId until
+                                
+                            member __.UnrestrictUser chatUsername username =
+                                ApiExt.unrestrictUser context.Config %chatUsername %username
+                                
+                            member __.SendTextToChannel text =
+                                ApiExt.sendMessage settings.ChannelId context.Config text
+                            
+                            member __.PrepareAndDownloadFile fileId =
+                                ApiExt.prepareAndDownloadFile context.Config fileId
+                    }
+                    
+                    let dataApi = {
+                        new IDataAccessApi with
+                            member __.GetUsernameByUserId userId = async {
+                                match! Datastore.findUsernameByUserId %userId with
+                                | UsernameFound username ->
+                                    return Some %(sprintf "@%s" username)
+                                | UsernameNotFound ->
+                                    return None
+                            }
+                    }
+                    
                     match newMessage with
                     | NewAdminPrivateMessage document ->
                         do! Processing.processAdminCommand settings context.Config document.FileId
                     | NewUsersAdded users ->
                         do! Processing.processNewUsersCommand users
                     | NewMessage message ->
-                        do! Processing.iterTextMessage (Processing.processTextCommand settings) context message
-                    | ReplyToMessage replyToMessage ->
-                        do! Processing.iterReplyToMessage (Processing.processReplyMessage settings) context replyToMessage
+                        match prepareTextMessage context message with
+                        | TextMessage textMessage ->
+                            let! command =
+                                parseTextMessage settings textMessage
+                                |> executeTextCommand settings botApi dataApi
+                            do! logСommandToChannel botApi command
+                        | NotATextMessage -> ()
+                    | ReplyToMessage reply ->
+                        match prepareReplyToMessage context reply with
+                        | ReplyMessage message ->
+                            let! command =
+                                parseReplyMessage settings message
+                                |> executeTextCommand settings botApi dataApi   
+                            do! logСommandToChannel botApi command
+                        | NotAReplyMessage -> ()
                     | IgnoreMessage -> ()
                 }
                 |> Option.defaultValue Async.Unit

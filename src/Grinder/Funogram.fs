@@ -93,26 +93,20 @@ module ApiExt =
         |> callApiWithDefaultRetry context
         |> Async.Ignore
         
-    let prepareAndDownloadFile config fileId = async {
-        match! Api.getFile fileId |> callApiWithDefaultRetry config with
-        | Ok data ->
-            let uri =
-                let filePath = Option.get data.FilePath
-                sprintf "https://api.telegram.org/file/bot%s/%s" config.Token filePath
-            let streamCall = async {
+    let prepareAndDownloadFile config fileId =
+        async {
+            match! Api.getFile fileId |> callApiWithDefaultRetry config with
+            | Ok data ->
+                let uri =
+                    let filePath = Option.get data.FilePath
+                    sprintf "https://api.telegram.org/file/bot%s/%s" config.Token filePath
                 try
                     let! stream = config.Client.GetStreamAsync(uri) |> Async.AwaitTask
                     return Ok stream
                 with
                 | :? Exception as e ->
                     return Error <| e.ToString()
-            }
-            let! streamResult = retry 5 streamCall
-            match streamResult with
-            | Ok stream ->
-                return Ok stream
             | Error e ->
-                return Error { Description = e; ErrorCode = -1 }
-        | Error e ->
-            return Error e
-    }
+                return Error <| sprintf "Failed to download file. Description: %s" e.Description
+        }
+        |> retry 5
