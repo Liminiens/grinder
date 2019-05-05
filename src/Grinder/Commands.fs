@@ -127,7 +127,6 @@ module Parser =
             
 module Processing =
     open Funogram
-    open Funogram.Bot
     open Funogram.Types
     open Grinder.FunogramExt
     open Parser
@@ -150,11 +149,14 @@ module Processing =
         ChatUsername: ChatUsername
     }
     
-    type CommandValidationResult =
+    type AuthorizationResult =
         | CommandAllowed
         | CommandNotAllowed
     
-    let isCommandAllowed (botSettings: BotSettings) username chatUsername =
+    let inline authorize (botSettings: BotSettings) context =
+        let username = (^T: (member FromUsername: UserUsername)(context))
+        let chatUsername = (^T: (member ChatUsername: ChatUsername)(context))
+        
         let isAllowedUser username =
             botSettings.AllowedUsers.Set
             |> Set.contains %username
@@ -167,7 +169,7 @@ module Processing =
             CommandAllowed
         else
             CommandNotAllowed
-            
+    
     let prepareTextMessage (botUsername: string option) (message: Message) =
         botUsername
         |> Option.bind ^ fun botUsername ->
@@ -192,6 +194,58 @@ module Processing =
                 ChatUsername = %(sprintf "@%s" chatUsername)
             }
     
+    let prepareReplyToMessage (botUsername: string option) (reply: ReplyMessage) =
+        botUsername
+        |> Option.bind ^ fun botUsername ->
+            reply.Message.From
+            |> Option.map ^ fun from ->
+                (botUsername, reply.Message, from)
+        |> Option.bind ^ fun (botUsername, message, from) ->
+            from.Username
+            |> Option.map ^ fun username ->
+                (botUsername, message, username)
+        |> Option.bind ^ fun (botUsername, message, username) ->
+            message.Text
+            |> Option.map ^ fun text ->
+                (botUsername, message, username, text)
+        |> Option.bind ^ fun (botUsername, message, username, text) ->
+            message.Chat.Username
+            |> Option.map ^ fun chatUsername ->
+                (chatUsername, botUsername, message, username, text)
+        |> Option.bind ^ fun (chatUsername, botUsername, message, username, text) ->
+            //if someone added user
+            if reply.ReplyToMessage.From = reply.Message.From then
+                reply.ReplyToMessage.NewChatMember
+                |> Option.map ^ fun user ->
+                     { BotUsername = %botUsername
+                       Message = message
+                       MessageText = text
+                       ReplyToUser = user
+                       ReplyToMessage = reply.ReplyToMessage
+                       FromUsername = %username
+                       ChatUsername = %(sprintf "@%s" chatUsername) }
+            else
+                match reply.ReplyToMessage.From with
+                | Some from -> 
+                  { BotUsername = %botUsername
+                    Message = message
+                    MessageText = text
+                    ReplyToUser = from
+                    ReplyToMessage = reply.ReplyToMessage
+                    FromUsername = %username
+                    ChatUsername = %(sprintf "@%s" chatUsername) }
+                  |> Some
+                | None ->
+                   reply.ReplyToMessage.NewChatMember
+                   |> Option.map ^ fun user ->
+                        { BotUsername = %botUsername
+                          Message = message
+                          MessageText = text
+                          ReplyToUser = user
+                          ReplyToMessage = reply.ReplyToMessage
+                          FromUsername = %username
+                          ChatUsername = %(sprintf "@%s" chatUsername) }
+                        
     type BanOnReplyCommandContext = {
         From: UserUsername
         MessageId: TelegramMessageId
@@ -288,114 +342,54 @@ module Processing =
         | UnbanMessage of UserUsername * UnbanMessage * CommandError array
         | DoNothingMessage
         
-    let prepareReplyToMessage (botUsername: string option) (reply: ReplyMessage) =
-        botUsername
-        |> Option.bind ^ fun botUsername ->
-            reply.Message.From
-            |> Option.map ^ fun from ->
-                (botUsername, reply.Message, from)
-        |> Option.bind ^ fun (botUsername, message, from) ->
-            from.Username
-            |> Option.map ^ fun username ->
-                (botUsername, message, username)
-        |> Option.bind ^ fun (botUsername, message, username) ->
-            message.Text
-            |> Option.map ^ fun text ->
-                (botUsername, message, username, text)
-        |> Option.bind ^ fun (botUsername, message, username, text) ->
-            message.Chat.Username
-            |> Option.map ^ fun chatUsername ->
-                (chatUsername, botUsername, message, username, text)
-        |> Option.bind ^ fun (chatUsername, botUsername, message, username, text) ->
-            //if someone added user
-            if reply.ReplyToMessage.From = reply.Message.From then
-                reply.ReplyToMessage.NewChatMember
-                |> Option.map ^ fun user ->
-                     { BotUsername = %botUsername
-                       Message = message
-                       MessageText = text
-                       ReplyToUser = user
-                       ReplyToMessage = reply.ReplyToMessage
-                       FromUsername = %username
-                       ChatUsername = %(sprintf "@%s" chatUsername) }
-            else
-                match reply.ReplyToMessage.From with
-                | Some from -> 
-                  { BotUsername = %botUsername
-                    Message = message
-                    MessageText = text
-                    ReplyToUser = from
-                    ReplyToMessage = reply.ReplyToMessage
-                    FromUsername = %username
-                    ChatUsername = %(sprintf "@%s" chatUsername) }
-                  |> Some
-                | None ->
-                   reply.ReplyToMessage.NewChatMember
-                   |> Option.map ^ fun user ->
-                        { BotUsername = %botUsername
-                          Message = message
-                          MessageText = text
-                          ReplyToUser = user
-                          ReplyToMessage = reply.ReplyToMessage
-                          FromUsername = %username
-                          ChatUsername = %(sprintf "@%s" chatUsername) }
-
     let parseReplyMessage (botSettings: BotSettings) (context: ReplyToMessageContext) =
-        match isCommandAllowed botSettings context.FromUsername context.ChatUsername with
-        | CommandAllowed ->
-            if context.MessageText.Contains("ban") && context.MessageText.Contains(%context.BotUsername) then
-                let context = {
-                    From = %context.FromUsername
-                    MessageId = %context.Message.MessageId
-                    ReplyToMessageId = %context.ReplyToMessage.MessageId
-                    ChatId = %context.Message.Chat.Id
-                    UserId = %context.ReplyToUser.Id
-                    Username = context.ReplyToUser.Username |> Option.map ^ fun username -> %username
-                }
-                BanOnReplyCommand context
-            else
-                DoNothingCommand
-        | CommandNotAllowed ->
+        if context.MessageText.Contains("ban") && context.MessageText.Contains(%context.BotUsername) then
+            let context = {
+                From = %context.FromUsername
+                MessageId = %context.Message.MessageId
+                ReplyToMessageId = %context.ReplyToMessage.MessageId
+                ChatId = %context.Message.Chat.Id
+                UserId = %context.ReplyToUser.Id
+                Username = context.ReplyToUser.Username |> Option.map ^ fun username -> %username
+            }
+            BanOnReplyCommand context
+        else
             DoNothingCommand
         
     let parseTextMessage (botSettings: BotSettings) (context: UserTextMessageContext): Command =
-        match isCommandAllowed botSettings context.FromUsername context.ChatUsername with
-        | CommandAllowed ->
-            match Parser.parse %context.BotUsername context.MessageText with
-            | BotCommand(Command((Usernames usernames), Ban(duration))) ->
-                let until =
-                    match duration with
-                    | Forever ->
-                        DateTime.UtcNow.AddMonths(13)
-                    | Timed date ->
-                        date
-                let usernames =
-                    usernames
-                    |> Seq.map ^ fun username -> %username
+        match Parser.parse %context.BotUsername context.MessageText with
+        | BotCommand(Command((Usernames usernames), Ban(duration))) ->
+            let until =
+                match duration with
+                | Forever ->
+                    DateTime.UtcNow.AddMonths(13)
+                | Timed date ->
+                    date
+            let usernames =
+                usernames
+                |> Seq.map ^ fun username -> %username
+            
+            let context = {
+                From = %context.FromUsername
+                MessageId = %context.Message.MessageId
+                ChatId = %context.Message.Chat.Id
+                Usernames = usernames
+                Until = until
+            }
+            BanCommand context
+        | BotCommand(Command((Usernames usernames), Unban)) ->
+            let usernames =
+                usernames
+                |> Seq.map ^ fun username -> %username
                 
-                let context = {
-                    From = %context.FromUsername
-                    MessageId = %context.Message.MessageId
-                    ChatId = %context.Message.Chat.Id
-                    Usernames = usernames
-                    Until = until
-                }
-                BanCommand context
-            | BotCommand(Command((Usernames usernames), Unban)) ->
-                let usernames =
-                    usernames
-                    |> Seq.map ^ fun username -> %username
-                    
-                let context = {
-                    From = %context.FromUsername
-                    MessageId = %context.Message.MessageId
-                    ChatId = %context.Message.Chat.Id
-                    Usernames = usernames
-                }
-                UnbanCommand context
-            | InvalidCommand _ ->
-                DoNothingCommand
-        | CommandNotAllowed ->
+            let context = {
+                From = %context.FromUsername
+                MessageId = %context.Message.MessageId
+                ChatId = %context.Message.Chat.Id
+                Usernames = usernames
+            }
+            UnbanCommand context
+        | InvalidCommand _ ->
             DoNothingCommand
                 
     let executeCommand (botSettings: BotSettings) (botApi: IBotApi) (dataApi: IDataAccessApi) command = async {

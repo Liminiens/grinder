@@ -1,10 +1,12 @@
 module Grinder.CommandsTests
 
+open System
 open System.Collections
 open System.Collections.Generic
 open Funogram.Types
 open Grinder.Commands.Processing
 open Grinder.Types
+open FSharp.UMX
 open Xunit
 
 type NotValidTextMessageGenerator() =
@@ -239,4 +241,32 @@ let ``prepareReplyToMessage returns None when bot username is None``() =
     | Some _ ->
         Assert.Fail()
     | None ->
+        Assert.Success()
+        
+[<Fact>]
+let ``authorize returns CommandAllowed``() =
+    let settings = createSettings [|"chat"|] [|"user"|]
+    
+    let message = { defaultTextMessage with FromUsername = %"user"; ChatUsername = %"chat" }
+    
+    match authorize settings message with
+    | CommandAllowed ->
+        Assert.Success()
+    | CommandNotAllowed ->
+        Assert.Fail()
+        
+[<Theory>]
+[<InlineData(null, null)>]
+[<InlineData("chat", null)>]
+[<InlineData(null, "user")>]
+[<InlineData("chat1", "user")>]
+let ``authorize returns CommandNotAllowed``(chat: string, user: string) =
+    let settings = createSettings [|chat|] [|user|]
+    
+    let message = { defaultTextMessage with FromUsername = %"user"; ChatUsername = %"chat" }
+    
+    match authorize settings message with
+    | CommandAllowed ->
+        Assert.Fail()
+    | CommandNotAllowed ->
         Assert.Success()

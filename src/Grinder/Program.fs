@@ -91,14 +91,20 @@ module Program =
                     | NewMessage message ->
                         match prepareTextMessage context.Me.Username message with
                         | Some message ->
-                            let! command = parseAndExecuteTextMessage settings botApi dataApi message
-                            do! Logging.logСommandToChannel botApi command
+                            match authorize settings message with
+                            | CommandAllowed ->
+                                let! command = parseAndExecuteTextMessage settings botApi dataApi message
+                                do! Logging.logСommandToChannel botApi command
+                            | CommandNotAllowed -> ()
                         | None -> ()
                     | NewReplyMessage reply ->
                         match prepareReplyToMessage context.Me.Username reply with
                         | Some message ->
-                            let! command = parseAndExecuteReplyMessage settings botApi dataApi message
-                            do! Logging.logСommandToChannel botApi command
+                            match authorize settings message with
+                            | CommandAllowed ->
+                                let! command = parseAndExecuteReplyMessage settings botApi dataApi message
+                                do! Logging.logСommandToChannel botApi command
+                            | CommandNotAllowed -> ()
                         | None -> ()
                     | IgnoreMessage -> ()
                 }
