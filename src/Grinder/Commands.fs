@@ -133,7 +133,6 @@ module Processing =
     open Parser
     
     type UserTextMessageContext = {
-        BotConfig: BotConfig
         BotUsername: UserUsername
         Message: Message
         MessageText: string
@@ -142,7 +141,6 @@ module Processing =
     }
     
     type ReplyToMessageContext = {
-        BotConfig: BotConfig
         BotUsername: UserUsername
         Message: Message
         MessageText: string
@@ -191,7 +189,6 @@ module Processing =
         |> Option.bind ^ fun (botUsername, message, username, text) ->
             message.Chat.Username
             |> Option.map ^ fun chatUsername -> TextMessage {
-                BotConfig = context.Config
                 BotUsername = %botUsername
                 Message = message
                 MessageText = text
@@ -322,8 +319,7 @@ module Processing =
             if reply.ReplyToMessage.From = reply.Message.From then
                 reply.ReplyToMessage.NewChatMember
                 |> Option.map ^ fun user ->
-                     { BotConfig = context.Config
-                       BotUsername = %botUsername
+                     { BotUsername = %botUsername
                        Message = message
                        MessageText = text
                        ReplyToUser = user
@@ -334,8 +330,7 @@ module Processing =
             else
                 match reply.ReplyToMessage.From with
                 | Some from -> 
-                  { BotConfig = context.Config
-                    BotUsername = %botUsername
+                  { BotUsername = %botUsername
                     Message = message
                     MessageText = text
                     ReplyToUser = from
@@ -347,8 +342,7 @@ module Processing =
                 | None ->
                    reply.ReplyToMessage.NewChatMember
                    |> Option.map ^ fun user ->
-                        { BotConfig = context.Config
-                          BotUsername = %botUsername
+                        { BotUsername = %botUsername
                           Message = message
                           MessageText = text
                           ReplyToUser = user
