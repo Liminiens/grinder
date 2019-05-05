@@ -96,10 +96,10 @@ module Program =
                         | None -> ()
                     | NewReplyMessage reply ->
                         match prepareReplyToMessage context.Me.Username reply with
-                        | ReplyMessage message ->
+                        | Some message ->
                             let! command = parseAndExecuteReplyMessage settings botApi dataApi message
                             do! Logging.logСommandToChannel botApi command
-                        | NotAReplyMessage -> ()
+                        | None -> ()
                     | IgnoreMessage -> ()
                 }
                 |> Option.defaultValue Async.Unit

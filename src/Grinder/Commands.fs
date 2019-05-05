@@ -190,8 +190,7 @@ module Processing =
                 MessageText = text
                 FromUsername = %username
                 ChatUsername = %(sprintf "@%s" chatUsername)
-            } |> Some
-        |> Option.defaultValue None
+            }
     
     type BanOnReplyCommandContext = {
         From: UserUsername
@@ -288,10 +287,6 @@ module Processing =
         | BanOnReplyMessage of UserUsername * BanOnReplyMessage * CommandError array
         | UnbanMessage of UserUsername * UnbanMessage * CommandError array
         | DoNothingMessage
-    
-    type ReplyMessageResult =
-        | ReplyMessage of ReplyToMessageContext
-        | NotAReplyMessage
         
     let prepareReplyToMessage (botUsername: string option) (reply: ReplyMessage) =
         botUsername
@@ -312,6 +307,7 @@ module Processing =
             |> Option.map ^ fun chatUsername ->
                 (chatUsername, botUsername, message, username, text)
         |> Option.bind ^ fun (chatUsername, botUsername, message, username, text) ->
+            //if someone added user
             if reply.ReplyToMessage.From = reply.Message.From then
                 reply.ReplyToMessage.NewChatMember
                 |> Option.map ^ fun user ->
@@ -322,7 +318,6 @@ module Processing =
                        ReplyToMessage = reply.ReplyToMessage
                        FromUsername = %username
                        ChatUsername = %(sprintf "@%s" chatUsername) }
-                     |> ReplyMessage
             else
                 match reply.ReplyToMessage.From with
                 | Some from -> 
@@ -333,7 +328,6 @@ module Processing =
                     ReplyToMessage = reply.ReplyToMessage
                     FromUsername = %username
                     ChatUsername = %(sprintf "@%s" chatUsername) }
-                  |> ReplyMessage
                   |> Some
                 | None ->
                    reply.ReplyToMessage.NewChatMember
@@ -345,8 +339,6 @@ module Processing =
                           ReplyToMessage = reply.ReplyToMessage
                           FromUsername = %username
                           ChatUsername = %(sprintf "@%s" chatUsername) }
-                        |> ReplyMessage
-        |> Option.defaultValue NotAReplyMessage
 
     let parseReplyMessage (botSettings: BotSettings) (context: ReplyToMessageContext) =
         match isCommandAllowed botSettings context.FromUsername context.ChatUsername with
