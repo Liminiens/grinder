@@ -9,3 +9,10 @@ module Assert =
     let FailWithMessage text = Assert.True(false, text)
     
     let Success() = Assert.True(true)
+    
+[<AutoOpen>]
+module Funogram =
+    open Funogram.Types    
+
+    let defaultUser =
+         { Id = -1L; IsBot = false; FirstName = null; LastName = None; Username = None; LanguageCode = None }

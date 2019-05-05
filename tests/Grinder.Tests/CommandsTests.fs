@@ -7,9 +7,6 @@ open Grinder.Commands.Processing
 open Grinder.Types
 open Xunit
 
-let defaultUser =
-     { Id = -1L; IsBot = false; FirstName = null; LastName = None; Username = None; LanguageCode = None }
-
 type NotValidTextMessageGenerator() =
     interface IEnumerable<obj array> with
         member __.GetEnumerator() =
