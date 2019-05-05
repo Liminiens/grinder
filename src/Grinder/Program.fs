@@ -85,24 +85,20 @@ module Program =
                 |> Option.map ^ fun newMessage -> async {
                     match newMessage with
                     | NewAdminPrivateMessage document ->
-                        do! Processing.processAdminCommand settings context.Config document.FileId
+                        do! processAdminCommand settings context.Config document.FileId
                     | NewUsersAdded users ->
-                        do! Processing.processNewUsersCommand users
+                        do! processNewUsersCommand users
                     | NewMessage message ->
                         match prepareTextMessage context message with
-                        | TextMessage textMessage ->
-                            let! command =
-                                parseTextMessage settings textMessage
-                                |> executeTextCommand settings botApi dataApi
-                            do! logСommandToChannel botApi command
+                        | TextMessage message ->
+                            let! command = parseAndExecuteTextMessage settings botApi dataApi message
+                            do! Logging.logСommandToChannel botApi command
                         | NotATextMessage -> ()
-                    | ReplyToMessage reply ->
+                    | NewReplyMessage reply ->
                         match prepareReplyToMessage context reply with
                         | ReplyMessage message ->
-                            let! command =
-                                parseReplyMessage settings message
-                                |> executeTextCommand settings botApi dataApi   
-                            do! logСommandToChannel botApi command
+                            let! command = parseAndExecuteReplyMessage settings botApi dataApi message
+                            do! Logging.logСommandToChannel botApi command
                         | NotAReplyMessage -> ()
                     | IgnoreMessage -> ()
                 }

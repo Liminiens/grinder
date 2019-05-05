@@ -48,11 +48,11 @@ type BotSettings = {
     AdminUserId: TelegramUserId
 }
     
-type ReplyToMessage = { Message: Message; ReplyToMessage: Message }
+type ReplyMessage = { Message: Message; ReplyToMessage: Message }
 
 type UpdateType =
     | IgnoreMessage
-    | ReplyToMessage of ReplyToMessage
+    | NewReplyMessage of ReplyMessage
     | NewUsersAdded of User list
     | NewMessage of Message
     | NewAdminPrivateMessage of Document
@@ -76,7 +76,7 @@ module UpdateType =
                     match message.ReplyToMessage with
                     | Some reply ->
                         { Message = message; ReplyToMessage = reply }
-                        |> ReplyToMessage
+                        |> NewReplyMessage
                     | None ->
                         NewMessage message
     
