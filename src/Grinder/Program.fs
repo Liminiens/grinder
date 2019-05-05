@@ -89,13 +89,13 @@ module Program =
                     | NewUsersAdded users ->
                         do! processNewUsersCommand users
                     | NewMessage message ->
-                        match prepareTextMessage context message with
-                        | TextMessage message ->
+                        match prepareTextMessage context.Me.Username message with
+                        | Some message ->
                             let! command = parseAndExecuteTextMessage settings botApi dataApi message
                             do! Logging.logСommandToChannel botApi command
-                        | NotATextMessage -> ()
+                        | None -> ()
                     | NewReplyMessage reply ->
-                        match prepareReplyToMessage context reply with
+                        match prepareReplyToMessage context.Me.Username reply with
                         | ReplyMessage message ->
                             let! command = parseAndExecuteReplyMessage settings botApi dataApi message
                             do! Logging.logСommandToChannel botApi command

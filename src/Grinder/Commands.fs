@@ -167,13 +167,9 @@ module Processing =
             CommandAllowed
         else
             CommandNotAllowed
-
-    type TextMessageResult =
-        | TextMessage of UserTextMessageContext
-        | NotATextMessage
             
-    let prepareTextMessage (context: UpdateContext) (message: Message) =
-        context.Me.Username
+    let prepareTextMessage (botUsername: string option) (message: Message) =
+        botUsername
         |> Option.bind ^ fun botUsername ->
             message.From
             |> Option.map ^ fun from ->
@@ -188,14 +184,14 @@ module Processing =
                 (botUsername, message, username, text)
         |> Option.bind ^ fun (botUsername, message, username, text) ->
             message.Chat.Username
-            |> Option.map ^ fun chatUsername -> TextMessage {
+            |> Option.map ^ fun chatUsername -> {
                 BotUsername = %botUsername
                 Message = message
                 MessageText = text
                 FromUsername = %username
                 ChatUsername = %(sprintf "@%s" chatUsername)
-            }
-        |> Option.defaultValue NotATextMessage
+            } |> Some
+        |> Option.defaultValue None
     
     type BanOnReplyCommandContext = {
         From: UserUsername
@@ -297,8 +293,8 @@ module Processing =
         | ReplyMessage of ReplyToMessageContext
         | NotAReplyMessage
         
-    let prepareReplyToMessage (context: UpdateContext) (reply: ReplyMessage) =
-        context.Me.Username
+    let prepareReplyToMessage (botUsername: string option) (reply: ReplyMessage) =
+        botUsername
         |> Option.bind ^ fun botUsername ->
             reply.Message.From
             |> Option.map ^ fun from ->
