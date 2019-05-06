@@ -103,9 +103,11 @@ let ``pforeverBan parses forever ban as forever text`` () =
     | _ ->
         Assert.Fail()
         
-[<Fact>]
-let ``parseCommand returns correct command for ban`` () =
-    let command = "@bot @first @second ban 1 day 12 months"
+[<Theory>]
+[<InlineData("@bot @first @second ban 1 day 12 months")>]
+[<InlineData("    @bot @first @second ban 1 day 12 months")>]
+[<InlineData(" \n\r \n@bot @first @second ban 1 day 12 months")>]
+let ``parseCommand returns correct command for ban`` (command) =
     match run (parseCommand "@bot") command with
     | Success(Command(Usernames(usernames), Ban(Timed(duration))), _, _) ->
         let time = DateTime.UtcNow.AddMonths(12).AddDays(1.)

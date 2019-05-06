@@ -314,3 +314,16 @@ let ``BanMessage FormatAsString returns correct message when date is more than a
     let messageText = (message :> IMessage).FormatAsString()
     
     Assert.Equal(expected, messageText)
+    
+[<Fact>]
+let ``UnbanMessage FormatAsString returns correct message``() =
+    let expected = """Unbanned @user1, @user2 in chats @chat1, @chat2"""
+    
+    let message = {
+      Usernames = [%"@user1"; %"@user2"]
+      Chats = [%"@chat1"; %"@chat2"]
+    }
+    
+    let messageText = (message :> IMessage).FormatAsString()
+    
+    Assert.Equal(expected, messageText)
