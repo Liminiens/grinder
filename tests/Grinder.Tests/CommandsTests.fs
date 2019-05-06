@@ -260,6 +260,7 @@ let ``authorize returns CommandAllowed``() =
 [<InlineData("chat", null)>]
 [<InlineData(null, "user")>]
 [<InlineData("chat1", "user")>]
+[<InlineData("chat", "user1")>]
 let ``authorize returns CommandNotAllowed``(chat: string, user: string) =
     let settings = createSettings [|chat|] [|user|]
     
