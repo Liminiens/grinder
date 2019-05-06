@@ -339,7 +339,7 @@ module Processing =
         | UnbanMessage of UserUsername * UnbanMessage * CommandError array
         | DoNothingMessage
         
-    let parseReplyMessage (botSettings: BotSettings) (context: ReplyToMessageContext) =
+    let parseReplyMessage (context: ReplyToMessageContext) =
         if context.MessageText.Contains("ban") && context.MessageText.Contains(%context.BotUsername) then
             let context = {
                 From = %context.FromUsername
@@ -353,7 +353,7 @@ module Processing =
         else
             DoNothingCommand
         
-    let parseTextMessage (botSettings: BotSettings) (context: UserTextMessageContext): Command =
+    let parseTextMessage (context: UserTextMessageContext): Command =
         match Parser.parse %context.BotUsername context.MessageText with
         | BotCommand(Command((Usernames usernames), Ban(duration))) ->
             let until =
@@ -494,11 +494,11 @@ module Processing =
     }
     
     let parseAndExecuteTextMessage settings botApi dataApi message =
-        parseTextMessage settings message
+        parseTextMessage message
         |> executeCommand settings botApi dataApi
     
     let parseAndExecuteReplyMessage settings botApi dataApi message =
-        parseReplyMessage settings message
+        parseReplyMessage message
         |> executeCommand settings botApi dataApi
         
     let processAdminCommand (botSettings: BotSettings) (config: BotConfig) fileId = async {
