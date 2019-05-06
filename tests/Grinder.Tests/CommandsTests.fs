@@ -271,3 +271,46 @@ let ``authorize returns CommandNotAllowed``(chat: string, user: string) =
         Assert.Fail()
     | CommandNotAllowed ->
         Assert.Success()
+        
+[<Fact>]
+let ``BanOnReplyMessage FormatAsString returns correct message``() =
+    let expected = """Banned 1 (user) in chats @chat1, @chat2 forever"""
+    
+    let message = {
+      Username = %"user"
+      UserId = %1L
+      Chats = [%"@chat1"; %"@chat2"]
+    }
+    
+    let messageText = (message :> IMessage).FormatAsString()
+    
+    Assert.Equal(expected, messageText)
+    
+[<Fact>]
+let ``BanMessage FormatAsString returns correct message when date is less than a year ahead``() =
+    let expected = """Banned @user1, @user2 in chats @chat1, @chat2 until 2017-01-01 02:02:02 UTC"""
+    
+    let message = {
+      Usernames = [%"@user1"; %"@user2"]
+      Until = DateTime(2017,1,1,2,2,2)
+      Chats = [%"@chat1"; %"@chat2"]
+    }
+    
+    let messageText = (message :> IMessage).FormatAsString()
+    
+    Assert.Equal(expected, messageText)
+
+    
+[<Fact>]
+let ``BanMessage FormatAsString returns correct message when date is more than a year ahead``() =
+    let expected = """Banned @user1, @user2 in chats @chat1, @chat2 forever"""
+    
+    let message = {
+      Usernames = [%"@user1"; %"@user2"]
+      Until = DateTime.UtcNow.AddMonths(13)
+      Chats = [%"@chat1"; %"@chat2"]
+    }
+    
+    let messageText = (message :> IMessage).FormatAsString()
+    
+    Assert.Equal(expected, messageText)

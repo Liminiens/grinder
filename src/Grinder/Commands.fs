@@ -303,7 +303,7 @@ module Processing =
                     if __.Until > DateTime.UtcNow.AddYears(1) then
                         "forever"
                     else
-                        __.Until.ToString("yyyy-MM-dd HH:mm:ss")
+                        sprintf "until %s UTC" (__.Until.ToString("yyyy-MM-dd HH:mm:ss"))
                             
                 let usernamesText =
                     __.Usernames
@@ -315,7 +315,7 @@ module Processing =
                     |> Seq.map ^ fun chat -> %chat
                     |> String.join ", "
                         
-                sprintf "Banned %s in chats %s until %s UTC" usernamesText chatsText durationText
+                sprintf "Banned %s in chats %s %s" usernamesText chatsText durationText
                 
     type UnbanMessage =
         { Usernames: UserUsername seq
