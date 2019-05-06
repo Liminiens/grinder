@@ -91,7 +91,7 @@ module Program =
                     | NewMessage message ->
                         match prepareTextMessage context.Me.Username message with
                         | Some message ->
-                            match authorize settings message with
+                            match authorize settings message.FromUsername message.ChatUsername with
                             | CommandAllowed ->
                                 let! command = parseAndExecuteTextMessage settings botApi dataApi message
                                 do! Logging.logСommandToChannel botApi command
@@ -100,7 +100,7 @@ module Program =
                     | NewReplyMessage reply ->
                         match prepareReplyToMessage context.Me.Username reply with
                         | Some message ->
-                            match authorize settings message with
+                            match authorize settings message.FromUsername message.ChatUsername with
                             | CommandAllowed ->
                                 let! command = parseAndExecuteReplyMessage settings botApi dataApi message
                                 do! Logging.logСommandToChannel botApi command

@@ -249,7 +249,7 @@ let ``authorize returns CommandAllowed``() =
     
     let message = { defaultTextMessage with FromUsername = %"user"; ChatUsername = %"chat" }
     
-    match authorize settings message with
+    match authorize settings message.FromUsername message.ChatUsername with
     | CommandAllowed ->
         Assert.Success()
     | CommandNotAllowed ->
@@ -265,7 +265,7 @@ let ``authorize returns CommandNotAllowed``(chat: string, user: string) =
     
     let message = { defaultTextMessage with FromUsername = %"user"; ChatUsername = %"chat" }
     
-    match authorize settings message with
+    match authorize settings message.FromUsername message.ChatUsername with
     | CommandAllowed ->
         Assert.Fail()
     | CommandNotAllowed ->

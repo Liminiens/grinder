@@ -153,19 +153,16 @@ module Processing =
         | CommandAllowed
         | CommandNotAllowed
     
-    let inline authorize (botSettings: BotSettings) context =
-        let username = (^T: (member FromUsername: UserUsername)(context))
-        let chatUsername = (^T: (member ChatUsername: ChatUsername)(context))
-        
+    let authorize (botSettings: BotSettings) user chat =
         let isAllowedUser username =
             botSettings.AllowedUsers.Set
-            |> Set.contains %username
+            |> Set.contains username
 
         let isAllowedChat chatUsername =
             botSettings.ChatsToMonitor.Set
-            |> Set.contains %chatUsername
+            |> Set.contains chatUsername
             
-        if isAllowedUser username && isAllowedChat chatUsername then    
+        if isAllowedUser user && isAllowedChat chat then    
             CommandAllowed
         else
             CommandNotAllowed
