@@ -8,6 +8,7 @@ open Grinder.Commands.Processing
 open Grinder.Types
 open FSharp.UMX
 open Foq
+open Grinder.Commands.Parser
 open Xunit
 
 type NotValidTextMessageGenerator() =
@@ -293,7 +294,7 @@ let ``BanMessage FormatAsString returns correct message when date is less than a
     
     let message = {
       Usernames = [%"@user1"; %"@user2"]
-      Until = DateTime(2017,1,1,2,2,2)
+      Until = DateTime(2017,1,1,2,2,2) |> Timed
       Chats = [%"@chat1"; %"@chat2"]
     }
     
@@ -308,7 +309,7 @@ let ``BanMessage FormatAsString returns correct message when date is more than a
     
     let message = {
       Usernames = [%"@user1"; %"@user2"]
-      Until = DateTime.UtcNow.AddMonths(13)
+      Until = DateTime.UtcNow.AddMonths(13) |> Timed
       Chats = [%"@chat1"; %"@chat2"]
     }
     
@@ -333,7 +334,7 @@ let ``UnbanMessage FormatAsString returns correct message``() =
 let ``formatMessage returns correct message for ban message``() = async {
     let message = {
       Usernames = [%"@user1"; %"@user2"]
-      Until = DateTime(2017,1,1,2,2,2)
+      Until = DateTime(2017,1,1,2,2,2) |> Timed
       Chats = [%"@chat1"; %"@chat2"]
     }
     

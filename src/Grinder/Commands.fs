@@ -22,7 +22,16 @@ module Parser =
     type BanDuration =
         | Forever
         | Timed of DateTime
-        
+        member this.Value =
+            match this with
+            | Forever ->
+                DateTime.UtcNow.AddMonths(13)
+            | Timed date ->
+                date
+                
+        member this.FormattedStringValue =
+            this.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                
     type TimeFractionSummator() =
         let mutable value = Unchecked.defaultof<DateTime>
         
@@ -257,7 +266,7 @@ module Processing =
         MessageId: TelegramMessageId
         ChatId: TelegramChatId
         Usernames: UserUsername seq
-        Until: DateTime
+        Until: BanDuration
     }
     
     type UnbanCommandContext = {
@@ -296,15 +305,15 @@ module Processing =
     type BanMessage =
         { Usernames: UserUsername seq
           Chats: ChatUsername seq
-          Until: DateTime }
+          Until: BanDuration }
         interface IMessage with
             member __.FormatAsString() =
                 let durationText =
-                    if __.Until > DateTime.UtcNow.AddYears(1) then
+                    if __.Until.Value > DateTime.UtcNow.AddYears(1) then
                         "forever"
                     else
-                        sprintf "until %s UTC" (__.Until.ToString("yyyy-MM-dd HH:mm:ss"))
-                            
+                        sprintf "until %s UTC" __.Until.FormattedStringValue
+                        
                 let usernamesText =
                     __.Usernames
                     |> Seq.map ^ fun username -> %username
@@ -356,12 +365,6 @@ module Processing =
     let parseTextMessage (context: TextMessageContext): Command =
         match Parser.parse %context.BotUsername context.MessageText with
         | BotCommand(Command((Usernames usernames), Ban(duration))) ->
-            let until =
-                match duration with
-                | Forever ->
-                    DateTime.UtcNow.AddMonths(13)
-                | Timed date ->
-                    date
             let usernames =
                 usernames
                 |> Seq.map ^ fun username -> %username
@@ -371,7 +374,7 @@ module Processing =
                 MessageId = %context.Message.MessageId
                 ChatId = %context.Message.Chat.Id
                 Usernames = usernames
-                Until = until
+                Until = duration
             }
             BanCommand context
         | BotCommand(Command((Usernames usernames), Unban)) ->
@@ -411,7 +414,7 @@ module Processing =
                 [for user in context.Usernames do
                     if userCanBeBanned user then
                         for chat in botSettings.ChatsToMonitor.Set do
-                            yield botApi.RestrictUser chat user context.Until
+                            yield botApi.RestrictUser chat user context.Until.Value
                                   |> Async.Map ^ fun result ->
                                       Result.mapError ApiError result
                     else
