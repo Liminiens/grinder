@@ -330,23 +330,17 @@ let ``UnbanMessage FormatAsString returns correct message``() =
     Assert.Equal(expected, messageText)
     
 [<Fact>]
-let ``logСommandToChannel logs correct message for ban on message``() = async {
+let ``formatMessage returns correct message for ban message``() = async {
     let message = {
       Usernames = [%"@user1"; %"@user2"]
       Until = DateTime(2017,1,1,2,2,2)
       Chats = [%"@chat1"; %"@chat2"]
     }
-    let commandMessage = BanMessage(%"user", message, [|ApiError("Api error")|])
     
     let expected = "Ban command from: @user\n\nBanned @user1, @user2 in chats @chat1, @chat2 until 2017-01-01 02:02:02 UTC\n\nApi error"
     
-    let botApi =
-        Mock<IBotApi>()
-            .Setup(fun mock -> <@ mock.SendTextToChannel(any()) @>).Returns(Async.Unit)
-            .Create()
+    let commandMessage = BanMessage(%"user", message, [|ApiError("Api error")|])
     
-    do! Logging.logСommandToChannel botApi commandMessage
-    
-    verify <@ botApi.SendTextToChannel(expected) @> Times.once
+    Assert.Equal(expected, formatMessage commandMessage)
 }
     

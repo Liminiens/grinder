@@ -337,7 +337,6 @@ module Processing =
         | BanMessage of UserUsername * BanMessage * CommandError array
         | BanOnReplyMessage of UserUsername * BanOnReplyMessage * CommandError array
         | UnbanMessage of UserUsername * UnbanMessage * CommandError array
-        | DoNothingMessage
         
     let parseReplyMessage (context: ReplyToMessageContext) =
         if context.MessageText.Contains("ban") && context.MessageText.Contains(%context.BotUsername) then
@@ -430,7 +429,7 @@ module Processing =
                 Until = context.Until
             }
             
-            return BanMessage(context.From, message, errors)
+            return Some <| BanMessage(context.From, message, errors)
         | BanOnReplyCommand context ->
             let! username = async {
                 match context.Username with
@@ -468,7 +467,7 @@ module Processing =
                 UserId = context.UserId
             }
             
-            return BanOnReplyMessage(context.From, message, errors)
+            return Some <| BanOnReplyMessage(context.From, message, errors)
         | UnbanCommand context ->
             do! botApi.DeleteMessage context.ChatId context.MessageId
             
@@ -488,9 +487,9 @@ module Processing =
                 Usernames = context.Usernames
             }
             
-            return UnbanMessage(context.From, message, errors)
+            return Some <| UnbanMessage(context.From, message, errors)
         | DoNothingCommand ->
-            return DoNothingMessage
+            return None
     }
     
     let parseAndExecuteTextMessage settings botApi dataApi message =
@@ -519,28 +518,21 @@ module Processing =
             DataAccess.User(UserId = u.Id, Username = Option.get u.Username)
         |> Datastore.upsertUsers
         
-    module Logging =
+    let formatMessage =
         let concatErrors (errors: CommandError seq) =
             [for error in errors do
                 match error with
                 | ApiError e -> yield e
                 | AdminBanNotAllowedError e -> yield e]
             |> String.join "\n"
-            
+        
         let formatHeader commandName username (message: IMessage) =
             sprintf "%s command from: @%s\n\n%s" commandName %username (message.FormatAsString())
             
-        let logСommandToChannel (botApi: IBotApi) commandMessage = async {
-            match commandMessage with
-            | BanMessage(fromUsername, message, errors) ->
-                do! sprintf "%s\n\n%s" (formatHeader "Ban" fromUsername message) (concatErrors errors)
-                    |> botApi.SendTextToChannel
-            | UnbanMessage(fromUsername, message, errors) ->
-                do! sprintf "%s\n\n%s" (formatHeader "Unban" fromUsername message) (concatErrors errors)
-                    |> botApi.SendTextToChannel
-            | BanOnReplyMessage(fromUsername, message, errors) ->
-                do! sprintf "%s\n\n%s" (formatHeader "Ban on reply" fromUsername message) (concatErrors errors)
-                    |> botApi.SendTextToChannel
-            | DoNothingMessage -> ()
-        }
-        
+        function
+        | BanMessage(fromUsername, message, errors) ->
+            sprintf "%s\n\n%s" (formatHeader "Ban" fromUsername message) (concatErrors errors)
+        | UnbanMessage(fromUsername, message, errors) ->
+            sprintf "%s\n\n%s" (formatHeader "Unban" fromUsername message) (concatErrors errors)
+        | BanOnReplyMessage(fromUsername, message, errors) ->
+            sprintf "%s\n\n%s" (formatHeader "Ban on reply" fromUsername message) (concatErrors errors)

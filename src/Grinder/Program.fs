@@ -94,7 +94,9 @@ module Program =
                             match authorize settings message.FromUsername message.ChatUsername with
                             | CommandAllowed ->
                                 let! command = parseAndExecuteTextMessage settings botApi dataApi message
-                                do! Logging.logСommandToChannel botApi command
+                                do! command
+                                    |> Option.map (formatMessage >> botApi.SendTextToChannel)
+                                    |> Option.defaultValue Async.Unit
                             | CommandNotAllowed -> ()
                         | None -> ()
                     | NewReplyMessage reply ->
@@ -103,7 +105,9 @@ module Program =
                             match authorize settings message.FromUsername message.ChatUsername with
                             | CommandAllowed ->
                                 let! command = parseAndExecuteReplyMessage settings botApi dataApi message
-                                do! Logging.logСommandToChannel botApi command
+                                do! command
+                                    |> Option.map (formatMessage >> botApi.SendTextToChannel)
+                                    |> Option.defaultValue Async.Unit
                             | CommandNotAllowed -> ()
                         | None -> ()
                     | IgnoreMessage -> ()
