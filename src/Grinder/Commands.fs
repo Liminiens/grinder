@@ -131,7 +131,7 @@ module Processing =
     open Grinder.FunogramExt
     open Parser
     
-    type UserTextMessageContext = {
+    type TextMessageContext = {
         BotUsername: UserUsername
         Message: Message
         MessageText: string
@@ -167,7 +167,7 @@ module Processing =
         else
             CommandNotAllowed
     
-    let prepareTextMessage (botUsername: string option) (message: Message) =
+    let prepareTextMessage (botUsername: string option) (message: Message): TextMessageContext option =
         botUsername
         |> Option.bind ^ fun botUsername ->
             message.From
@@ -191,7 +191,7 @@ module Processing =
                 ChatUsername = %(sprintf "@%s" chatUsername)
             }
     
-    let prepareReplyToMessage (botUsername: string option) (reply: ReplyMessage) =
+    let prepareReplyToMessage (botUsername: string option) (reply: ReplyMessage): ReplyToMessageContext option =
         botUsername
         |> Option.bind ^ fun botUsername ->
             reply.Message.From
@@ -338,21 +338,22 @@ module Processing =
         | BanOnReplyMessage of UserUsername * BanOnReplyMessage * CommandError array
         | UnbanMessage of UserUsername * UnbanMessage * CommandError array
         
-    let parseReplyMessage (context: ReplyToMessageContext) =
-        if context.MessageText.Contains("ban") && context.MessageText.Contains(%context.BotUsername) then
+    let parseReplyMessage (context: ReplyToMessageContext): Command =
+        if context.MessageText.StartsWith(%context.BotUsername) && context.MessageText.Contains("ban") then
             let context = {
                 From = %context.FromUsername
                 MessageId = %context.Message.MessageId
                 ReplyToMessageId = %context.ReplyToMessage.MessageId
                 ChatId = %context.Message.Chat.Id
                 UserId = %context.ReplyToUser.Id
-                Username = context.ReplyToUser.Username |> Option.map ^ fun username -> %username
+                Username = context.ReplyToUser.Username
+                           |> Option.map ^ fun username -> %username
             }
             BanOnReplyCommand context
         else
             DoNothingCommand
         
-    let parseTextMessage (context: UserTextMessageContext): Command =
+    let parseTextMessage (context: TextMessageContext): Command =
         match Parser.parse %context.BotUsername context.MessageText with
         | BotCommand(Command((Usernames usernames), Ban(duration))) ->
             let until =
@@ -388,7 +389,7 @@ module Processing =
         | InvalidCommand _ ->
             DoNothingCommand
                 
-    let executeCommand (botSettings: BotSettings) (botApi: IBotApi) (dataApi: IDataAccessApi) command = async {
+    let executeCommand (botSettings: BotSettings) (botApi: IBotApi) (dataApi: IDataAccessApi) command: Async<CommandMessage option> = async {
         let getErrors results =
             results
             |> Result.partition
@@ -492,15 +493,15 @@ module Processing =
             return None
     }
     
-    let parseAndExecuteTextMessage settings botApi dataApi message =
+    let parseAndExecuteTextMessage settings botApi dataApi message: Async<CommandMessage option> =
         parseTextMessage message
         |> executeCommand settings botApi dataApi
     
-    let parseAndExecuteReplyMessage settings botApi dataApi message =
+    let parseAndExecuteReplyMessage settings botApi dataApi message: Async<CommandMessage option> =
         parseReplyMessage message
         |> executeCommand settings botApi dataApi
         
-    let processAdminCommand (botSettings: BotSettings) (config: BotConfig) fileId = async {
+    let processAdminCommand (botSettings: BotSettings) (config: BotConfig) fileId: Async<unit> = async {
         match! ApiExt.prepareAndDownloadFile config fileId with
         | Ok stream ->
             let users = JsonNet.deserializeFromStream<DataAccess.User[]>(stream)
@@ -511,14 +512,14 @@ module Processing =
             do! ApiExt.sendMessage botSettings.ChannelId config e
     }
     
-    let processNewUsersCommand (users: Types.User seq) =
+    let processNewUsersCommand (users: Types.User seq): Async<unit> =
         users
         |> Seq.filter ^ fun u -> Option.isSome u.Username
         |> Seq.map ^ fun u ->
             DataAccess.User(UserId = u.Id, Username = Option.get u.Username)
         |> Datastore.upsertUsers
         
-    let formatMessage =
+    let formatMessage: CommandMessage -> string =
         let concatErrors (errors: CommandError seq) =
             [for error in errors do
                 match error with
