@@ -1,6 +1,6 @@
 # Grinder
 
-Telegram bot for chats administation.
+Telegram bot for chats administration.
 
 ## Configuration and build
 
