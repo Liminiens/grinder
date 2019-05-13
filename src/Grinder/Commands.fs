@@ -524,19 +524,26 @@ module Processing =
         
     let formatMessage: CommandMessage -> string =
         let concatErrors (errors: CommandError seq) =
-            [for error in errors do
-                match error with
-                | ApiError e -> yield e
-                | AdminBanNotAllowedError e -> yield e]
-            |> String.join "\n"
+            let errorsText = 
+                [for error in errors do
+                    match error with
+                    | ApiError e -> yield e
+                    | AdminBanNotAllowedError e -> yield e]
+            match errorsText with
+            | [] ->
+                String.Empty
+            | text ->
+                text
+                |> String.join "\n"
+                |> sprintf "\n\n%s"
         
         let formatHeader commandName username (message: IMessage) =
             sprintf "%s command from: @%s\n\n%s" commandName %username (message.FormatAsString())
             
         function
         | BanMessage(fromUsername, message, errors) ->
-            sprintf "%s\n\n%s" (formatHeader "Ban" fromUsername message) (concatErrors errors)
+            sprintf "%s%s" (formatHeader "Ban" fromUsername message) (concatErrors errors)
         | UnbanMessage(fromUsername, message, errors) ->
-            sprintf "%s\n\n%s" (formatHeader "Unban" fromUsername message) (concatErrors errors)
+            sprintf "%s%s" (formatHeader "Unban" fromUsername message) (concatErrors errors)
         | BanOnReplyMessage(fromUsername, message, errors) ->
-            sprintf "%s\n\n%s" (formatHeader "Ban on reply" fromUsername message) (concatErrors errors)
+            sprintf "%s%s" (formatHeader "Ban on reply" fromUsername message) (concatErrors errors)

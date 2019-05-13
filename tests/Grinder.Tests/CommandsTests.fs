@@ -345,3 +345,46 @@ let ``formatMessage returns correct message for ban message``() = async {
     Assert.Equal(expected, formatMessage commandMessage)
 }
     
+[<Fact>]
+let ``formatMessage returns correct message for ban on reply message``() = async {
+    let message = {
+      UserId = %1L
+      Username = %"@user1"
+      Chats = [%"@chat1"; %"@chat2"]
+    }
+    
+    let expected = "Ban on reply command from: @user\n\nBanned 1 (@user1) in chats @chat1, @chat2 forever\n\nApi error"
+    
+    let commandMessage = BanOnReplyMessage(%"user", message, [|ApiError("Api error")|])
+    
+    Assert.Equal(expected, formatMessage commandMessage)
+}
+
+[<Fact>]
+let ``formatMessage returns correct message for ban on reply message without errors``() = async {
+    let message = {
+      UserId = %1L
+      Username = %"@user1"
+      Chats = [%"@chat1"; %"@chat2"]
+    }
+    
+    let expected = "Ban on reply command from: @user\n\nBanned 1 (@user1) in chats @chat1, @chat2 forever"
+    
+    let commandMessage = BanOnReplyMessage(%"user", message, [||])
+    
+    Assert.Equal(expected, formatMessage commandMessage)
+}
+
+[<Fact>]
+let ``formatMessage returns correct message for unban``() = async {
+    let message = {
+      Usernames = [%"@user1"; %"@user2"]
+      Chats = [%"@chat1"; %"@chat2"]
+    }
+    
+    let expected = "Unban command from: @user\n\nUnbanned @user1, @user2 in chats @chat1, @chat2"
+    
+    let commandMessage = UnbanMessage(%"user", message, [||])
+    
+    Assert.Equal(expected, formatMessage commandMessage)
+}
