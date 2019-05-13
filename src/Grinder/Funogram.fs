@@ -35,6 +35,13 @@ module ApiExt =
           UserId: int64 }
         interface IRequestBase<bool> with
             member __.MethodName = "unbanChatMember"
+            
+    type KickChatMemberReqExt = 
+        { ChatId: ChatId
+          UserId: int64
+          UntilDate: int64 }
+        interface IRequestBase<bool> with
+            member __.MethodName = "kickChatMember"
         
     type RestrictChatMemberReqExt = 
         { ChatId: ChatId
@@ -51,15 +58,19 @@ module ApiExt =
         { ChatId = ChatId.String chatName; UserId = userId }
              
     let restrictChatMemberBaseExt chatId userId (untilDate: DateTime) canSendMessages canSendMediaMessages canSendOtherMessages canAddWebPagePreviews =
-        let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+        let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds
         { ChatId = chatId; UserId = userId; UntilDate = seconds; CanSendMessages = canSendMessages; 
         CanSendMediaMessages = canSendMediaMessages; CanSendOtherMessages = canSendOtherMessages; CanAddWebPagePreviews = canAddWebPagePreviews }
+    
+    let kickChatMemberByChatNameUntilExt chatName userId (untilDate: DateTime): KickChatMemberReqExt =
+        let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds
+        { ChatId = (ChatId.String chatName); UserId = userId; UntilDate = seconds }
         
     let banUserByUsername context chat username until = async {
         match! Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
             let! banResult =  
-                kickChatMemberByChatNameUntil chat userId until
+                kickChatMemberByChatNameUntilExt chat userId until
                 |> callApiWithDefaultRetry context
             match banResult with
             | Ok _ ->
@@ -72,7 +83,7 @@ module ApiExt =
 
     let banUserByUserId context chat userId until = async {
         let! restrictResult =  
-            kickChatMemberByChatNameUntil chat userId until
+            kickChatMemberByChatNameUntilExt chat userId until
             |> callApiWithDefaultRetry context
         match restrictResult with
         | Ok _ ->
