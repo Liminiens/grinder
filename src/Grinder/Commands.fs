@@ -193,7 +193,7 @@ module Processing =
         |> Option.bind ^ fun (botUsername, message, username, text) ->
             message.Chat.Username
             |> Option.map ^ fun chatUsername -> {
-                BotUsername = %botUsername
+                BotUsername = %(sprintf "@%s" botUsername)
                 Message = message
                 MessageText = text
                 FromUsername = %username
@@ -223,7 +223,7 @@ module Processing =
             if reply.ReplyToMessage.From = reply.Message.From then
                 reply.ReplyToMessage.NewChatMember
                 |> Option.map ^ fun user ->
-                     { BotUsername = %botUsername
+                     { BotUsername = %(sprintf "@%s" botUsername)
                        Message = message
                        MessageText = text
                        ReplyToUser = user
@@ -233,7 +233,7 @@ module Processing =
             else
                 match reply.ReplyToMessage.From with
                 | Some from -> 
-                  { BotUsername = %botUsername
+                  { BotUsername = %(sprintf "@%s" botUsername)
                     Message = message
                     MessageText = text
                     ReplyToUser = from
@@ -244,7 +244,7 @@ module Processing =
                 | None ->
                    reply.ReplyToMessage.NewChatMember
                    |> Option.map ^ fun user ->
-                        { BotUsername = %botUsername
+                        { BotUsername = %(sprintf "@%s" botUsername)
                           Message = message
                           MessageText = text
                           ReplyToUser = user
@@ -414,7 +414,7 @@ module Processing =
                 [for user in context.Usernames do
                     if userCanBeBanned user then
                         for chat in botSettings.ChatsToMonitor.Set do
-                            yield botApi.RestrictUser chat user context.Until.Value
+                            yield botApi.BanUserByUsername chat user context.Until.Value
                                   |> Async.Map ^ fun result ->
                                       Result.mapError ApiError result
                     else
@@ -452,7 +452,7 @@ module Processing =
                     [yield botApi.DeleteMessage context.ChatId context.ReplyToMessageId
                            |> Async.Map Ok
                      for chat in botSettings.ChatsToMonitor.Set do
-                        yield botApi.RestrictUserById chat context.UserId (DateTime.UtcNow.AddMonths(13))
+                        yield botApi.BanUserByUserId chat context.UserId (DateTime.UtcNow.AddMonths(13))
                               |> Async.Map ^ fun result ->
                                     Result.mapError ApiError result]
                 else
@@ -478,7 +478,7 @@ module Processing =
             let requests =
                 [for user in context.Usernames do
                     for chat in botSettings.ChatsToMonitor.Set do
-                        yield botApi.UnrestrictUser chat user
+                        yield botApi.UnbanUser chat user
                               |> Async.Map ^ fun result ->
                                   Result.mapError ApiError result]
             let! errors =

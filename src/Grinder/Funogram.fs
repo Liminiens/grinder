@@ -30,7 +30,12 @@ let callApiWithDefaultRetry config = callApiWithRetry config 5
 
 [<RequireQualifiedAccess>]
 module ApiExt =
-    
+    type UnbanChatMemberReq = 
+        { ChatId: ChatId
+          UserId: int64 }
+        interface IRequestBase<bool> with
+            member __.MethodName = "unbanChatMember"
+        
     type RestrictChatMemberReqExt = 
         { ChatId: ChatId
           UserId: int64
@@ -41,30 +46,33 @@ module ApiExt =
           CanAddWebPagePreviews: bool option }
         interface IRequestBase<bool> with
             member __.MethodName = "restrictChatMember"
+    
+    let unbanChatMemberByChatNameExt chatName userId : UnbanChatMemberReq =
+        { ChatId = ChatId.String chatName; UserId = userId }
              
     let restrictChatMemberBaseExt chatId userId (untilDate: DateTime) canSendMessages canSendMediaMessages canSendOtherMessages canAddWebPagePreviews =
         let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
         { ChatId = chatId; UserId = userId; UntilDate = seconds; CanSendMessages = canSendMessages; 
         CanSendMediaMessages = canSendMediaMessages; CanSendOtherMessages = canSendOtherMessages; CanAddWebPagePreviews = canAddWebPagePreviews }
         
-    let restrictUser context chat username until = async {
+    let banUserByUsername context chat username until = async {
         match! Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
-            let! restrictResult =  
-                restrictChatMemberBaseExt (Funogram.Types.String(chat)) userId until (Some false) (Some false) (Some false) (Some false)
+            let! banResult =  
+                kickChatMemberByChatNameUntil chat userId until
                 |> callApiWithDefaultRetry context
-            match restrictResult with
+            match banResult with
             | Ok _ ->
                 return Ok ()
             | Error e ->
-                return Error <| sprintf "Failed to ban @%s in chat %s. Description: %s" username chat e.Description
+                return Error <| sprintf "Failed to ban %s in chat %s. Description: %s" username chat e.Description
         | UserIdNotFound ->
-            return Error <| sprintf "Couldn't resolve username @%s" username
+            return Error <| sprintf "Couldn't resolve username %s" username
     }
 
-    let restrictUserById context chat userId until = async {
+    let banUserByUserId context chat userId until = async {
         let! restrictResult =  
-            restrictChatMemberBaseExt (Funogram.Types.String(chat)) userId until (Some false) (Some false) (Some false) (Some false)
+            kickChatMemberByChatNameUntil chat userId until
             |> callApiWithDefaultRetry context
         match restrictResult with
         | Ok _ ->
@@ -73,19 +81,19 @@ module ApiExt =
             return Error <| sprintf "Failed to ban %i in chat %s. Description: %s" userId chat e.Description
     }
             
-    let unrestrictUser context chat username = async {
+    let unbanUserByUsername context chat username = async {
         match! Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
-            let! restrictResult = 
-                restrictChatMemberBase (Funogram.Types.String(chat)) userId None (Some true) (Some true) (Some true) (Some true)
+            let! unbanResult = 
+                unbanChatMemberByChatNameExt chat userId
                 |> callApiWithDefaultRetry context
-            match restrictResult with
+            match unbanResult with
             | Ok _ ->
                 return Ok ()
             | Error e ->
-                return Error <| sprintf "Failed to unban @%s in chat %s. Description: %s" username chat e.Description
+                return Error <| sprintf "Failed to unban %s in chat %s. Description: %s" username chat e.Description
         | UserIdNotFound ->
-            return Error <| sprintf "Couldn't resolve username @%s" username
+            return Error <| sprintf "Couldn't resolve username %s" username
     }
 
     let sendMessage (chatId: TelegramChatId) context text =

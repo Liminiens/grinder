@@ -23,12 +23,12 @@ module Datastore =
         }
         |> Async.AwaitTask
     
-    let findUserIdByUsername username =
+    let findUserIdByUsername (username: string) =
         task {
             use context = new GrinderContext()
             let! user =
                 context.Users
-                    .FirstOrDefaultAsync(fun u -> u.Username = username)
+                    .FirstOrDefaultAsync(fun u -> u.Username = username.TrimStart('@'))
             return user
                    |> Option.ofObj
                    |> Option.fold (fun _ u -> UserIdFound u.UserId) UserIdNotFound

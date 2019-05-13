@@ -98,7 +98,7 @@ let ``prepareTextMessage returns Some``() =
                  From =  Some { defaultUser with Username = Some "user" } }
     match prepareTextMessage botUsername message with
     | Some textMessage ->
-        Assert.Equal(textMessage.BotUsername, "bot")
+        Assert.Equal(textMessage.BotUsername, "@bot")
         Assert.Equal(textMessage.ChatUsername, "@chat")
         Assert.Equal(textMessage.FromUsername, "user")
         Assert.Equal(textMessage.MessageText, "text")
@@ -141,7 +141,7 @@ let ``prepareReplyMessage returns Some when reply is to message``() =
         
     match prepareReplyToMessage botUsername { Message = message; ReplyToMessage = reply } with
     | Some replyMessage ->
-        Assert.Equal(replyMessage.BotUsername, "bot")
+        Assert.Equal(replyMessage.BotUsername, "@bot")
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
@@ -168,7 +168,7 @@ let ``prepareReplyMessage returns Some when someone added chat member``() =
         
     match prepareReplyToMessage botUsername { Message = message; ReplyToMessage = reply } with
     | Some replyMessage ->
-        Assert.Equal(replyMessage.BotUsername, "bot")
+        Assert.Equal(replyMessage.BotUsername, "@bot")
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
@@ -193,7 +193,7 @@ let ``prepareReplyMessage returns Some when new chat member``() =
         
     match prepareReplyToMessage botUsername { Message = message; ReplyToMessage = reply } with
     | Some replyMessage ->
-        Assert.Equal(replyMessage.BotUsername, "bot")
+        Assert.Equal(replyMessage.BotUsername, "@bot")
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
@@ -218,7 +218,7 @@ let ``prepareReplyMessage returns Some when message is from someone``() =
         
     match prepareReplyToMessage botUsername { Message = message; ReplyToMessage = reply } with
     | Some replyMessage ->
-        Assert.Equal(replyMessage.BotUsername, "bot")
+        Assert.Equal(replyMessage.BotUsername, "@bot")
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")

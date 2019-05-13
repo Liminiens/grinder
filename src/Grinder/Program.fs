@@ -49,14 +49,14 @@ module Program =
                 |> callApiWithDefaultRetry config
                 |> Async.Ignore
             
-            member __.RestrictUser chatUsername userUsername until =
-                ApiExt.restrictUser config %chatUsername %userUsername until
+            member __.BanUserByUsername chatUsername userUsername until =
+                ApiExt.banUserByUsername config %chatUsername %userUsername until
                 
-            member __.RestrictUserById chatUsername userId until =
-                ApiExt.restrictUserById config %chatUsername %userId until
+            member __.BanUserByUserId chatUsername userId until =
+                ApiExt.banUserByUserId config %chatUsername %userId until
                 
-            member __.UnrestrictUser chatUsername username =
-                ApiExt.unrestrictUser config %chatUsername %username
+            member __.UnbanUser chatUsername username =
+                ApiExt.unbanUserByUsername config %chatUsername %username
                 
             member __.SendTextToChannel text =
                 ApiExt.sendMessage settings.ChannelId config text
@@ -90,10 +90,10 @@ module Program =
                         do! processNewUsersCommand users
                     | NewMessage message ->
                         match prepareTextMessage context.Me.Username message with
-                        | Some message ->
-                            match authorize settings message.FromUsername message.ChatUsername with
+                        | Some newMessage ->
+                            match authorize settings newMessage.FromUsername newMessage.ChatUsername with
                             | CommandAllowed ->
-                                let! command = parseAndExecuteTextMessage settings botApi dataApi message
+                                let! command = parseAndExecuteTextMessage settings botApi dataApi newMessage
                                 do! command
                                     |> Option.map (formatMessage >> botApi.SendTextToChannel)
                                     |> Option.defaultValue Async.Unit
@@ -101,10 +101,10 @@ module Program =
                         | None -> ()
                     | NewReplyMessage reply ->
                         match prepareReplyToMessage context.Me.Username reply with
-                        | Some message ->
-                            match authorize settings message.FromUsername message.ChatUsername with
+                        | Some replyMessage ->
+                            match authorize settings replyMessage.FromUsername replyMessage.ChatUsername with
                             | CommandAllowed ->
-                                let! command = parseAndExecuteReplyMessage settings botApi dataApi message
+                                let! command = parseAndExecuteReplyMessage settings botApi dataApi replyMessage
                                 do! command
                                     |> Option.map (formatMessage >> botApi.SendTextToChannel)
                                     |> Option.defaultValue Async.Unit
