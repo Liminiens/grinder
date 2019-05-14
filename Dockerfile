@@ -9,6 +9,7 @@ COPY src/Grinder.DataAccess/. ./src/Grinder.DataAccess
 WORKDIR /app/src/Grinder
 RUN dotnet restore
 RUN dotnet publish -c Release -o out
+COPY bot_config.json ./out
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/core/runtime:2.2.4-stretch-slim-arm32v7
