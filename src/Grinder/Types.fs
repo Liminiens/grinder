@@ -61,24 +61,31 @@ type UpdateType =
 module UpdateType =
     let fromUpdate (settings: BotSettings) (update: Update) =
         update.Message
-        |> Option.map ^ fun message ->
-            if message.Chat.Id = %settings.AdminUserId then
-                match message.Document with
-                | Some document ->
-                    NewAdminPrivateMessage document
-                | None ->
-                    IgnoreMessage
-            else
-                match message.NewChatMembers with
-                | Some users ->
-                    NewUsersAdded(List.ofSeq users)
-                | None ->
-                    match message.ReplyToMessage with
-                    | Some reply ->
-                        { Message = message; ReplyToMessage = reply }
-                        |> NewReplyMessage
+        |> Option.bind ^ fun message ->
+            message.Entities
+            |> Option.filter ^ fun entities ->
+                //skip code examples
+                entities
+                |> Seq.exists ^ fun e -> e.Type = "code" && e.Offset = 0L
+                |> not
+            |> Option.map ^ fun _ ->
+                if message.Chat.Id = %settings.AdminUserId then
+                    match message.Document with
+                    | Some document ->
+                        NewAdminPrivateMessage document
                     | None ->
-                        NewMessage message
+                        IgnoreMessage
+                else
+                    match message.NewChatMembers with
+                    | Some users ->
+                        NewUsersAdded(List.ofSeq users)
+                    | None ->
+                        match message.ReplyToMessage with
+                        | Some reply ->
+                            { Message = message; ReplyToMessage = reply }
+                            |> NewReplyMessage
+                        | None ->
+                            NewMessage message
     
 type IBotApi =
     abstract member DeleteMessage: TelegramChatId -> TelegramMessageId -> Async<unit>
