@@ -356,7 +356,7 @@ module Processing =
                 ChatId = %context.Message.Chat.Id
                 UserId = %context.ReplyToUser.Id
                 Username = context.ReplyToUser.Username
-                           |> Option.map ^ fun username -> %username
+                           |> Option.map ^ fun username -> %(sprintf "@%s" username)
             }
             BanOnReplyCommand context
         else
@@ -441,17 +441,18 @@ module Processing =
                     do! dataApi.UpsertUsers [DataAccess.User(UserId = %context.UserId, Username = %username)]
                     return username
                 | None ->
-                    return! dataApi.GetUsernameByUserId context.UserId
-                            |> Async.Map (Option.defaultValue %"unknown user")
+                    let! username = dataApi.GetUsernameByUserId context.UserId
+                    return username
+                           |> Option.map ^ fun name -> %(sprintf "@%s" %name)
+                           |> Option.defaultValue %"unknown user"
             }
                 
             do! botApi.DeleteMessage context.ChatId context.MessageId
+            do! botApi.DeleteMessage context.ChatId context.ReplyToMessageId
             
             let requests =
                 if userCanBeBanned username then
-                    [yield botApi.DeleteMessage context.ChatId context.ReplyToMessageId
-                           |> Async.Map Ok
-                     for chat in botSettings.ChatsToMonitor.Set do
+                    [for chat in botSettings.ChatsToMonitor.Set do
                         yield botApi.BanUserByUserId chat context.UserId (DateTime.UtcNow.AddMonths(13))
                               |> Async.Map ^ fun result ->
                                     Result.mapError ApiError result]
