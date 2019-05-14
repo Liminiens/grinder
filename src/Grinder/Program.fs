@@ -58,6 +58,9 @@ module Program =
             member __.UnbanUser chatUsername username =
                 ApiExt.unbanUserByUsername config %chatUsername %username
                 
+            member __.UnrestrictUser chatUsername username =
+                ApiExt.unrestrictUserByUsername config %chatUsername %username
+                
             member __.SendTextToChannel text =
                 ApiExt.sendMessage settings.ChannelId config text
             

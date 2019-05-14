@@ -481,6 +481,9 @@ module Processing =
                     for chat in botSettings.ChatsToMonitor.Set do
                         yield botApi.UnbanUser chat user
                               |> Async.Map ^ fun result ->
+                                  Result.mapError ApiError result
+                        yield botApi.UnrestrictUser chat user
+                              |> Async.Map ^ fun result ->
                                   Result.mapError ApiError result]
             let! errors =
                 requests

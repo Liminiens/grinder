@@ -106,7 +106,22 @@ module ApiExt =
         | UserIdNotFound ->
             return Error <| sprintf "Couldn't resolve username %s" username
     }
-
+    
+    let unrestrictUserByUsername context chat username = async {
+        match! Datastore.findUserIdByUsername username with
+        | UserIdFound userId ->
+            let! restrictResult = 
+                restrictChatMemberBase (Funogram.Types.String(chat)) userId None (Some true) (Some true) (Some true) (Some true)
+                |> callApiWithDefaultRetry context
+            match restrictResult with
+            | Ok _ ->
+                return Ok ()
+            | Error e ->
+                return Error <| sprintf "Failed to unrestrict %s in chat %s. Description: %s" username chat e.Description
+        | UserIdNotFound ->
+            return Error <| sprintf "Couldn't resolve username %s" username
+    }
+    
     let sendMessage (chatId: TelegramChatId) context text =
         sendMessageBase (ChatId.Int %chatId) text None None None None None
         |> callApiWithDefaultRetry context
