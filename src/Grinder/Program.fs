@@ -1,5 +1,6 @@
 ﻿namespace Grinder
 
+open Funogram
 open Grinder
 open Grinder.DataAccess
 open Grinder.Commands
@@ -7,6 +8,7 @@ open Grinder.Types
 open Funogram.Api
 open Funogram.Bot
 open Funogram.Types
+open FunogramExt
     
 module Program =
     open System.Net.Http
@@ -14,6 +16,7 @@ module Program =
     open MihaZupan
     open Newtonsoft.Json
     open FSharp.UMX
+    open Processing
     
     [<CLIMutable>]
     type Socks5Configuration = {
@@ -38,43 +41,78 @@ module Program =
         messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
         messageHandler.UseProxy <- true
         new HttpClient(messageHandler)
-    
-    module NewMessageType =
-        let fromUpdate (settings: BotSettings)  (update: Update)=
-            update.Message
-            |> Option.map ^ fun message ->
-                if message.Chat.Id = %settings.AdminUserId then
-                    match message.Document with
-                    | Some document ->
-                        NewAdminPrivateMessage document
-                    | None ->
-                        IgnoreMessage
-                else
-                    match message.NewChatMembers with
-                    | Some users ->
-                        NewUsersAdded(List.ofSeq users)
-                    | None ->
-                        match message.ReplyToMessage with
-                        | Some reply ->
-                            { Message = message; ReplyToMessage = reply }
-                            |> ReplyToMessage
-                        | None ->
-                            NewMessage message
-                            
+   
+    let createBotApi config (settings: BotSettings) = {
+        new IBotApi with
+            member __.DeleteMessage chatId messageId =
+                Api.deleteMessage %chatId %messageId
+                |> callApiWithDefaultRetry config
+                |> Async.Ignore
+            
+            member __.BanUserByUsername chatUsername userUsername until =
+                ApiExt.banUserByUsername config %chatUsername %userUsername until
                 
-    let onUpdate (settings: BotSettings) (context: UpdateContext) =
+            member __.BanUserByUserId chatUsername userId until =
+                ApiExt.banUserByUserId config %chatUsername %userId until
+                
+            member __.UnbanUser chatUsername username =
+                ApiExt.unbanUserByUsername config %chatUsername %username
+                
+            member __.UnrestrictUser chatUsername username =
+                ApiExt.unrestrictUserByUsername config %chatUsername %username
+                
+            member __.SendTextToChannel text =
+                ApiExt.sendMessage settings.ChannelId config text
+            
+            member __.PrepareAndDownloadFile fileId =
+                ApiExt.prepareAndDownloadFile config fileId
+    }
+    
+    let dataApi = {
+        new IDataAccessApi with
+            member __.GetUsernameByUserId userId = async {
+                match! Datastore.findUsernameByUserId %userId with
+                | UsernameFound username ->
+                    return Some %(sprintf "@%s" username)
+                | UsernameNotFound ->
+                    return None
+            }
+            
+            member __.UpsertUsers users =
+                Datastore.upsertUsers users
+    }    
+                
+    let onUpdate (settings: BotSettings) (botApi: IBotApi) (dataApi: IDataAccessApi) (context: UpdateContext) =
         async {
-            do! NewMessageType.fromUpdate settings context.Update
+            do! UpdateType.fromUpdate settings context.Update
                 |> Option.map ^ fun newMessage -> async {
                     match newMessage with
                     | NewAdminPrivateMessage document ->
-                        do! Processing.processAdminCommand settings context.Config document.FileId
+                        do! processAdminCommand settings context.Config document.FileId
                     | NewUsersAdded users ->
-                        do! Processing.processNewUsersCommand users
+                        do! processNewUsersCommand users
                     | NewMessage message ->
-                        do! Processing.iterTextMessage (Processing.processTextCommand settings) context message
-                    | ReplyToMessage replyToMessage ->
-                        do! Processing.iterReplyToMessage (Processing.processReplyMessage settings) context replyToMessage
+                        match prepareTextMessage context.Me.Username message with
+                        | Some newMessage ->
+                            match authorize settings newMessage.FromUsername newMessage.ChatUsername with
+                            | CommandAllowed ->
+                                let! command = parseAndExecuteTextMessage settings botApi dataApi newMessage
+                                do! command
+                                    |> Option.map (formatMessage >> botApi.SendTextToChannel)
+                                    |> Option.defaultValue Async.Unit
+                            | CommandNotAllowed -> ()
+                        | None -> ()
+                    | NewReplyMessage reply ->
+                        match prepareReplyToMessage context.Me.Username reply with
+                        | Some replyMessage ->
+                            match authorize settings replyMessage.FromUsername replyMessage.ChatUsername with
+                            | CommandAllowed ->
+                                let! command = parseAndExecuteReplyMessage settings botApi dataApi replyMessage
+                                do! command
+                                    |> Option.map (formatMessage >> botApi.SendTextToChannel)
+                                    |> Option.defaultValue Async.Unit
+                            | CommandNotAllowed -> ()
+                        | None -> ()
                     | IgnoreMessage -> ()
                 }
                 |> Option.defaultValue Async.Unit
@@ -105,7 +143,7 @@ module Program =
                 ChannelId = %config.ChannelId
                 AdminUserId = %config.AdminUserId
             }
-            do! startBot botConfiguration (onUpdate settings) None
+            do! startBot botConfiguration (onUpdate settings (createBotApi botConfiguration settings) dataApi) None
                 |> Async.StartChild
                 |> Async.Ignore
                 

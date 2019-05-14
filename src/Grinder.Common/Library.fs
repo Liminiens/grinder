@@ -20,11 +20,16 @@ module Task =
 module Async =
     let Unit = async { do () }
     
+    let inline Map fn asyncFn = async {
+        let! result = asyncFn
+        return fn result
+    }
+    
 [<RequireQualifiedAccess>]
 module String =
     let inline join separator (strings: string seq) =
         String.Join(separator, strings)
-  
+
 [<RequireQualifiedAccess>]      
 module Result =
     let inline partition results =
