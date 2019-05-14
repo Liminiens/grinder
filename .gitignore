@@ -263,3 +263,4 @@ __pycache__/
 **/tdlib/*
 *.db
 /bot_config.json
+*.orig
