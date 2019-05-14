@@ -61,31 +61,34 @@ type UpdateType =
 module UpdateType =
     let fromUpdate (settings: BotSettings) (update: Update) =
         update.Message
-        |> Option.bind ^ fun message ->
-            message.Entities
-            |> Option.filter ^ fun entities ->
-                //skip code examples
-                entities
-                |> Seq.exists ^ fun e -> e.Type = "code" && e.Offset = 0L
-                |> not
-            |> Option.map ^ fun _ ->
-                if message.Chat.Id = %settings.AdminUserId then
-                    match message.Document with
-                    | Some document ->
-                        NewAdminPrivateMessage document
-                    | None ->
-                        IgnoreMessage
-                else
-                    match message.NewChatMembers with
-                    | Some users ->
-                        NewUsersAdded(List.ofSeq users)
-                    | None ->
+        |> Option.map ^ fun message ->
+            if message.Chat.Id = %settings.AdminUserId then
+                match message.Document with
+                | Some document ->
+                    NewAdminPrivateMessage document
+                | None ->
+                    IgnoreMessage
+            else
+                let hasCodeBlock =
+                    message.Entities
+                    |> Option.filter ^ fun entities ->
+                        //code block
+                        entities
+                        |> Seq.exists ^ fun e -> e.Type = "code" && e.Offset = 0L
+                    |> Option.isSome
+                match message.NewChatMembers with
+                | Some users ->
+                    NewUsersAdded(List.ofSeq users)
+                | None ->
+                    if not hasCodeBlock then
                         match message.ReplyToMessage with
                         | Some reply ->
                             { Message = message; ReplyToMessage = reply }
                             |> NewReplyMessage
                         | None ->
                             NewMessage message
+                    else
+                        IgnoreMessage
     
 type IBotApi =
     abstract member DeleteMessage: TelegramChatId -> TelegramMessageId -> Async<unit>
