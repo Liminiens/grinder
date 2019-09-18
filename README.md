@@ -2,6 +2,8 @@
 
 Telegram bot for chats administration.
 
+[![Build Status](https://dev.azure.com/GrinderDotNetRu/Grinder/_apis/build/status/Keroosha.grinder?branchName=master)](https://dev.azure.com/GrinderDotNetRu/Grinder/_build/latest?definitionId=1&branchName=master)
+
 ## Configuration and build
 
 To build run you have to add a `bot_config.json` file on path `src\Grinder\`
