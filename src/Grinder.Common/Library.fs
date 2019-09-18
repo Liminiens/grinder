@@ -1,6 +1,8 @@
 namespace Grinder
 open System
 
+#nowarn "42"
+
 [<AutoOpen>]
 module Сommon =
 
