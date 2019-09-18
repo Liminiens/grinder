@@ -138,7 +138,7 @@ module ApiExt =
                     let! stream = config.Client.GetStreamAsync(uri) |> Async.AwaitTask
                     return Ok stream
                 with
-                | :? Exception as e ->
+                | e ->
                     return Error <| e.ToString()
             | Error e ->
                 return Error <| sprintf "Failed to download file. Description: %s" e.Description
