@@ -1,3 +1,4 @@
+FROM resin/rpi-raspbian
 FROM mcr.microsoft.com/dotnet/core/sdk:2.2.203-stretch-arm32v7 AS build-dotnet
 WORKDIR /app
 

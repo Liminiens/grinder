@@ -13,6 +13,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grinder.DataAccess", "src\G
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Grinder.Common", "src\Grinder.Common\Grinder.Common.fsproj", "{13E2DB48-FA8E-48A1-AD53-DA81EBE63A09}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CI", "CI", "{25990364-33CE-4203-B86E-4556F1B52E49}"
+ProjectSection(SolutionItems) = preProject
+	docker-compose.yml = docker-compose.yml
+	Dockerfile = Dockerfile
+EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
