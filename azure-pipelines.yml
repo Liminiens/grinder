@@ -3,8 +3,14 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+
 trigger:
-  - master
+  branches:
+    include:
+      - master
+  tags:
+    include:
+      - v*
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -18,7 +24,16 @@ steps:
   displayName: Run QEMU
 
 - task: Docker@2
+  displayName: build an image
+  inputs:
+    repository: $(imageName)
+    command: build
+    Dockerfile: Dockerfile
+  condition: master
+
+- task: Docker@2
   displayName: Build + Push
+  condition: tags
   inputs:
     containerRegistry: $(dockerHub)
     repository: $(imageName)
