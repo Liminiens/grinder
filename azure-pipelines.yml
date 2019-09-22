@@ -1,10 +1,5 @@
 trigger:
-  branches:
-    include:
-      - master
-  tags:
-    include:
-      - v*
+  - master
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -13,20 +8,14 @@ variables:
   imageName: $(image-name)
 
 steps:
-  - script: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-    displayName: Run QEMU
 
-  - script: docker build -t $(imageName) .
-    displayName: Build only
-    condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
+- script: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+  displayName: Run QEMU
 
-  - script: docker login -u $docker-user -p $docker-token
-    displayName: Login into docker
-    condition: ne($(Versioned), 'true')
-
-  - script: |
-      docker build -t $(imageName) .
-      docker push $(imageName):latest
-      docker push $(imageName):$(Build.BuildNumber)
-    displayName: Build + Push
-    condition: ne($(Versioned), 'true')
+- task: Docker@2
+  displayName: Build + Push
+  inputs:
+    containerRegistry: $(docker-hub)
+    repository: $(docker-name)/$(imageName)
+    command: buildAndPush
+    tags: latest
