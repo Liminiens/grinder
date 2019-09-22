@@ -1,5 +1,6 @@
 ﻿namespace Grinder
 
+open Microsoft.Extensions.Configuration
 open Funogram
 open Grinder
 open Grinder.DataAccess
@@ -12,9 +13,7 @@ open FunogramExt
     
 module Program =
     open System.Net.Http
-    open System.IO
     open MihaZupan
-    open Newtonsoft.Json
     open FSharp.UMX
     open Processing
     
@@ -34,6 +33,11 @@ module Program =
         AllowedUsers: string array
         ChannelId: int64
         AdminUserId: int64
+    }
+    
+    [<CLIMutable>]
+    type Config = {
+        Bot: BotConfig
     }
     
     let createHttpClient config =
@@ -121,10 +125,14 @@ module Program =
     [<EntryPoint>]
     let main _ =
         let config =
-            File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "bot_config.json"))
-            |> JsonConvert.DeserializeObject<BotConfig>
-        
-        let botConfiguration = { 
+            ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", false, true)
+                .AddEnvironmentVariables("Grinder_")
+                .Build()
+                .Get<Config>()
+                .Bot;
+                
+        let botConfiguration = {
             defaultConfig with
                 Token = config.Token
                 Client = createHttpClient config.Socks5Proxy

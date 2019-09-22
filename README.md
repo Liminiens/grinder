@@ -6,56 +6,53 @@ Telegram bot for chats administration.
 
 ## Configuration and build
 
-To build run you have to add a `bot_config.json` file on path `src\Grinder\`
+Just open project with Rider/VS 2019 and run build
 
-File structure:
+## Running
 
-```
-{
-  "Token": ...,
-  "ChannelId": ...,
-  "AdminUserId": ...,
-  "Socks5Proxy": {
-    "Hostname": "...",
-    "Port": ...,
-    "Username": "...",
-    "Password": "..."
-  },
-  "ChatsToMonitor": [
-    "chat @username",
-    ...
-  ],
-  "AllowedUsers": [
-    "username without at sign",
-    ...
-  ]
-}
+### Using a Docker container
+
+You can just spawn new container with bot from: ***keroosha/grinder*** repo
+
+**(DO NOT FORGET ABOUT ENVIRONMENT VARIABLES)**
+
+```bash
+docker run -d keroosha/grinder
 ```
 
-`Token` - bot api token.
+Or you can use already configured ***docker-compose.yml*** but, some action required before starting
 
-`ChannelId` - telegram channel id where bot whill write command logs.
+1. Create a ***config.env*** file with environments
+2. Change data path in ***docker-compose.yml***
+3. Setup database
+4. You are ready to go! ᕕ( ᐛ )ᕗ
 
-`AdminUserId` - telegram user id who will be able to send private messages to bot.
+### Environment Variables
 
-`Socks5Proxy` - Socks5 proxy configuration.
+```ini
+# Socks5Proxy - Socks5 proxy configuration
+Grinder_Bot__Socks5Proxy__Port=1337
+Grinder_Bot__Socks5Proxy__Hostname=Hostme
+Grinder_Bot__Socks5Proxy__Password=Secrete
+Grinder_Bot__Socks5Proxy__Username=User
 
-`ChatsToMonitor` - chats where bot will read messages and replyes.
+# AllowedUsers - users, who will be able to execute commands in chats from ChatsToMonitor
+Grinder_Bot__AllowedUsers__0=Pasha
+Grinder_Bot__AllowedUsers__1=Technique
 
-`AllowedUsers` - users, who will be able to execute commands in chats from `ChatsToMonitor`
+#ChatsToMonitor - chats where bot will read messages and replies
+Grinder_Bot__ChatsToMonitor__0=Sample
+Grinder_Bot__ChatsToMonitor__1=Text
 
-### Build
+#AdminUserId - telegram user id who will be able to send private messages to bot
+Grinder_Bot__AdminUserId=123
 
-To build run in docker on Raspberry Pi. From root directory:
+# ChannelId - telegram channel id where bot will write command logs
+Grinder_Bot__ChannelId=111
 
-```
-docker-compose build && docker-compose up -d
-```
+# Token - bot api token
+Grinder_Bot__Token=test
 
-To build run from coomand line. From `src\Grinder\` directory:
-
-```
-dotnet run -c Release
 ```
 
 ## Bot commands
