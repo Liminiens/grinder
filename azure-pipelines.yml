@@ -16,26 +16,19 @@ steps:
   - script: docker run --rm --privileged multiarch/qemu-user-static:register --reset
     displayName: Run QEMU
 
+  - script: docker build -t $(imageName) .
+    displayName: Build only
+    condition: master
+
   - script: docker login -u $docker-user -p $docker-token
     displayName: Login into docker
     condition: tags
 
-  - task: Docker@2
-    displayName: build an image
-    inputs:
-      repository: $(imageName)
-      command: build
-      Dockerfile: Dockerfile
-    condition: master
-
-  - task: Docker@2
+  - script: |
+      $TagArray= git tag -l v*
+      $TagName = $TagArray[$TagArray.Count – 1]
+      docker build -t $(imageName) .
+      docker push $(imageName):latest
+      docker push $(imageName):$TagName
     displayName: Build + Push
     condition: tags
-    inputs:
-      containerRegistry: $(docker-hub)
-      repository: $(imageName)
-      command: buildAndPush
-      tags: |
-        telegram
-        bot
-        admin
