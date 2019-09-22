@@ -18,17 +18,15 @@ steps:
 
   - script: docker build -t $(imageName) .
     displayName: Build only
-    condition: master
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
 
   - script: docker login -u $docker-user -p $docker-token
     displayName: Login into docker
-    condition: tags
+    condition: ne($(Versioned), 'true')
 
   - script: |
-      $TagArray= git tag -l v*
-      $TagName = $TagArray[$TagArray.Count – 1]
       docker build -t $(imageName) .
       docker push $(imageName):latest
-      docker push $(imageName):$TagName
+      docker push $(imageName):$(Build.BuildNumber)
     displayName: Build + Push
-    condition: tags
+    condition: ne($(Versioned), 'true')
