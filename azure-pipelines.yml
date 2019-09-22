@@ -16,6 +16,6 @@ steps:
   displayName: Build + Push
   inputs:
     containerRegistry: $(docker-hub)
-    repository: $(imageName)
+    repository: $(docker-user)/$(imageName)
     command: buildAndPush
     tags: latest
