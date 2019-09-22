@@ -10,7 +10,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  imageName: 'keroosha-grinder'
+  imageName: $(image-name)
 
 steps:
 
@@ -18,9 +18,13 @@ steps:
   displayName: Run QEMU
 
 - task: Docker@2
-  displayName: build an image
+  displayName: Build + Push
   inputs:
+    containerRegistry: $(dockerHub)
     repository: $(imageName)
-    command: build
-    Dockerfile: Dockerfile
+    command: buildAndPush
+    tags: |
+      telegram
+      bot
+      admin
 
