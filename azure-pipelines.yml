@@ -1,9 +1,3 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
-
 trigger:
   branches:
     include:
@@ -19,27 +13,29 @@ variables:
   imageName: $(image-name)
 
 steps:
+  - script: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+    displayName: Run QEMU
 
-- script: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-  displayName: Run QEMU
+  - script: docker login -u $docker-user -p $docker-token
+    displayName: Login into docker
+    condition: tags
 
-- task: Docker@2
-  displayName: build an image
-  inputs:
-    repository: $(imageName)
-    command: build
-    Dockerfile: Dockerfile
-  condition: master
+  - task: Docker@2
+    displayName: build an image
+    inputs:
+      repository: $(imageName)
+      command: build
+      Dockerfile: Dockerfile
+    condition: master
 
-- task: Docker@2
-  displayName: Build + Push
-  condition: tags
-  inputs:
-    containerRegistry: $(dockerHub)
-    repository: $(imageName)
-    command: buildAndPush
-    tags: |
-      telegram
-      bot
-      admin
-
+  - task: Docker@2
+    displayName: Build + Push
+    condition: tags
+    inputs:
+      containerRegistry: $(docker-hub)
+      repository: $(imageName)
+      command: buildAndPush
+      tags: |
+        telegram
+        bot
+        admin
