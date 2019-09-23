@@ -127,6 +127,7 @@ module Program =
         let config =
             ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", false, true)
+                .AddJsonFile("/etc/grinder/appsettings.json", true, true)
                 .AddEnvironmentVariables("Grinder_")
                 .Build()
                 .Get<Config>()

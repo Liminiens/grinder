@@ -12,4 +12,10 @@ RUN dotnet publish -r linux-arm -c Release -o out
 FROM mcr.microsoft.com/dotnet/core/runtime:2.2.4-stretch-slim-arm32v7
 WORKDIR /app
 COPY --from=build-dotnet /app/src/Grinder/out .
+
+RUN mkdir -p /etc/grinder && mkdir -p /app/data
+
+VOLUME /etc/grinder/
+VOLUME /app/data/
+
 ENTRYPOINT ["dotnet", "Grinder.dll"]

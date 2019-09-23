@@ -8,26 +8,86 @@ Telegram bot for chats administration.
 
 Just open project with Rider/VS 2019 and run build
 
+or use dotnet cli
+
+```bash
+dotnet restore && dotnet build
+```
+
 ## Running
+
+About configuration you can read below in [Configuration](#Configuration) section
 
 ### Using a Docker container
 
-You can just spawn new container with bot from: ***keroosha/grinder*** repo
+You can just spawn new container with bot from ***keroosha/grinder*** repo
 
-**(DO NOT FORGET ABOUT ENVIRONMENT VARIABLES)**
+use docker env file to configure a bot
 
 ```bash
-docker run -d keroosha/grinder
+docker run -d --env-file config.env keroosha/grinder
 ```
 
-Or you can use already configured ***docker-compose.yml*** but, some action required before starting
+or attaching dir with predefined appsetings.json
 
-1. Create a ***config.env*** file with environments
-2. Change data path in ***docker-compose.yml***
+```bash
+docker run -d --mount /path/to/dir/with/appsettings:/etc/grinder keroosha/grinder
+```
+
+### Using a docker-compose
+
+You can use already configured ***docker-compose.yml*** as example but, some action required before starting:
+
+1. Create a ***config.env*** file with environments or dir with ***appsettings.json***
+2. Change data path in ***docker-compose.yml*** and attach configurations to container
 3. Setup database
 4. You are ready to go! ᕕ( ᐛ )ᕗ
 
+### Localy
+
+Just create a launch configuration in your favorite IDE and don't forget about configuration and you will be fine :>
+
+## Configuration
+
+You can choose two ways to configure grinder but keep in mind about configuration priorities in configuration provider:
+
+[Order of Precedence when Configuring ASP.NET Core](https://devblogs.microsoft.com/premier-developer/order-of-precedence-when-configuring-asp-net-core/)
+
+### External appsettings.json
+
+#### appsettings.json
+
+```json
+{
+    "Bot": {
+        "Token": "test",
+        "ChannelId": 111,
+        "AdminUserId": 123,
+        "Socks5Proxy": {
+            "Hostname": "Hostme",
+            "Port": 1337,
+            "Username": "User",
+            "Password": "Secrete"
+        },
+        "ChatsToMonitor": [
+            "Sample",
+            "Text"
+        ],
+        "AllowedUsers": [
+            "Pasha",
+            "Technique"
+        ]
+    }
+}
+```
+
+#### Attaching appsettings.json
+
+You can attach dir with customized ***appsettings.json*** to **/etc/grinder/** volume
+
 ### Environment Variables
+
+Example of env file:
 
 ```ini
 # Socks5Proxy - Socks5 proxy configuration
@@ -52,18 +112,17 @@ Grinder_Bot__ChannelId=111
 
 # Token - bot api token
 Grinder_Bot__Token=test
-
 ```
 
 ## Bot commands
 
 1) Ban
-    
+
     While writing in any chat from `ChatsToMonitor`:
 
     `@botusername @user1 @user2 ... ban <time>`
 
-    Where time can be combination of this: 
+    Where time can be combination of this:
 
     Days: `<integer> day(s)`
 
@@ -83,7 +142,7 @@ Grinder_Bot__Token=test
 
     `@botusername @user1 @user2 ... ban 1 month 5 minutes`
 
-2) Unban 
+2) Unban
 
     While writing in any chat from `ChatsToMonitor`:
 
@@ -101,13 +160,13 @@ Grinder_Bot__Token=test
 
 4) Database update
 
-    This can execute only user `AdminUserId`. 
+    This can execute only user `AdminUserId`.
 
     This will update a database mapping of usernames to userid's. You have to send a file in a private message to bot.
 
     File structure:
 
-    ```
+    ```JSON
     [
       {"UserId": <telegram user id> ,"Username": "username without at sign"},
       ...
