@@ -9,6 +9,8 @@ COPY *.sln ./
 COPY src/Grinder/Grinder.fsproj ./src/Grinder/Grinder.fsproj
 COPY src/Grinder.Common/Grinder.Common.fsproj ./src/Grinder.Common/Grinder.Common.fsproj
 COPY src/Grinder.DataAccess/Grinder.DataAccess.csproj ./src/Grinder.DataAccess/Grinder.DataAccess.csproj
+COPY tests/Grinder.Tests/Grinder.Tests.fsproj ./tests/Grinder.Tests/Grinder.Tests.fsproj
+COPY src/Grinder.ExportTool/Grinder.ExportTool.fsproj ./src/Grinder.ExportTool/Grinder.ExportTool.fsproj
 RUN dotnet restore
 # Then build app
 COPY src/Grinder/. ./src/Grinder
