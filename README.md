@@ -11,7 +11,7 @@ Just open project with Rider/VS 2019 and run build
 or use dotnet cli
 
 ```bash
-dotnet restore && dotnet build
+dotnet build
 ```
 
 ## Running

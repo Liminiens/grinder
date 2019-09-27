@@ -6,6 +6,11 @@ FROM mcr.microsoft.com/dotnet/core/sdk:2.2.203-stretch AS build-dotnet
 WORKDIR /app
 # Copy csproj and restore as distinct layers
 COPY *.sln ./
+COPY src/Grinder/Grinder.fsproj ./src/Grinder/Grinder.fsproj
+COPY src/Grinder.Common/Grinder.Common.fsproj ./src/Grinder.Common/Grinder.Common.fsproj
+COPY src/Grinder.DataAccess/Grinder.DataAccess.csproj ./src/Grinder.DataAccess/Grinder.DataAccess.csproj
+RUN dotnet restore
+# Then build app
 COPY src/Grinder/. ./src/Grinder
 COPY src/Grinder.Common/. ./src/Grinder.Common
 COPY src/Grinder.DataAccess/. ./src/Grinder.DataAccess
