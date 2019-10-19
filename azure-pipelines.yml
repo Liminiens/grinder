@@ -30,5 +30,6 @@ steps:
     command: buildAndPush
     Dockerfile: '**/x86.Dockerfile'
     tags: | 
+      latest
       latest-x86
       x86
