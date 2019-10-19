@@ -27,7 +27,9 @@
         <Compile Include="Funogram.fs" />
         <Compile Include="Commands.fs" />
         <Compile Include="Program.fs" />
-        <Content Include="appsettings.json" />
+        <Content Include="appsettings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
     <ItemGroup>
