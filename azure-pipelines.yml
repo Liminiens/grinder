@@ -18,7 +18,9 @@ steps:
     containerRegistry: $(docker-hub)
     repository: $(docker-user)/$(imageName)
     command: buildAndPush
-    tags: arm
+    tags: | 
+      latest-arm
+      arm
     
 - task: Docker@2
   displayName: Build + Push (x86)
@@ -26,5 +28,7 @@ steps:
     containerRegistry: $(docker-hub)
     repository: $(docker-user)/$(imageName)
     command: buildAndPush
-    tags: latest x86
     Dockerfile: '**/x86.Dockerfile'
+    tags: | 
+      latest-x86
+      x86
