@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/core/sdk:2.2.4-stretch AS build-dotnet
+FROM mcr.microsoft.com/dotnet/core/sdk:2.2-alpine AS build-dotnet
 WORKDIR /app
 # Copy csproj and restore as distinct layers
 COPY *.sln ./
@@ -16,7 +16,7 @@ WORKDIR /app/src/Grinder
 RUN dotnet publish -c Release -o out
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/core/runtime:2.2.4-stretch-slim
+FROM mcr.microsoft.com/dotnet/core/runtime:2.2-alpine
 WORKDIR /app
 COPY --from=build-dotnet /app/src/Grinder/out .
 
