@@ -20,18 +20,19 @@ About configuration you can read below in [Configuration](#Configuration) sectio
 
 ### Using a Docker container
 
-You can just spawn new container with bot from ***keroosha/grinder*** repo
+You can just spawn new container with bot from [keroosha/grinder](https://hub.docker.com/r/keroosha/grinder) repo
+We have x86-64 and ARM32 containers for a bot, check tag section at docker hub page
 
 use docker env file to configure a bot
 
 ```bash
-docker run -d --env-file config.env keroosha/grinder
+docker run -d --env-file config.env keroosha/grinder:latest
 ```
 
 or attaching dir with predefined appsetings.json
 
 ```bash
-docker run -d --mount /path/to/dir/with/appsettings:/etc/grinder keroosha/grinder
+docker run -d --mount /path/to/dir/with/appsettings:/etc/grinder keroosha/grinder:latest
 ```
 
 ### Using a docker-compose
