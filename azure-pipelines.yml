@@ -13,9 +13,23 @@ steps:
   displayName: Run QEMU
 
 - task: Docker@2
-  displayName: Build + Push
+  displayName: Build + Push (arm)
   inputs:
     containerRegistry: $(docker-hub)
     repository: $(docker-user)/$(imageName)
     command: buildAndPush
-    tags: latest
+    tags: | 
+      latest-arm
+      arm
+    
+- task: Docker@2
+  displayName: Build + Push (x86)
+  inputs:
+    containerRegistry: $(docker-hub)
+    repository: $(docker-user)/$(imageName)
+    command: buildAndPush
+    Dockerfile: '**/x86.Dockerfile'
+    tags: | 
+      latest
+      latest-x86
+      x86
