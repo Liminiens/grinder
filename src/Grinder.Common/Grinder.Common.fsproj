@@ -2,6 +2,7 @@
 
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
+        <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     </PropertyGroup>
 
     <ItemGroup>
@@ -9,8 +10,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="TaskBuilder.fs" Version="2.1.0" />
-      <PackageReference Include="FSharp.Core" Version="4.6.2" />
+        <PackageReference Include="FSharp.Core" Version="4.6.2" />
+        <PackageReference Include="TaskBuilder.fs" Version="2.1.0" />
     </ItemGroup>
 
 </Project>
