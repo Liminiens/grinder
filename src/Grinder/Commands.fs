@@ -252,7 +252,7 @@ module Processing =
                           FromUsername = %username
                           ChatUsername = %(sprintf "@%s" chatUsername) }
                         
-    type BanOnReplyCommandContext = {
+    type ActionOnReplyCommandContext = {
         From: UserUsername
         MessageId: TelegramMessageId
         ReplyToMessageId: TelegramMessageId
@@ -275,11 +275,12 @@ module Processing =
         ChatId: TelegramChatId
         Usernames: UserUsername seq
     }
-         
+    
     type Command =
         | BanCommand of BanCommandContext
-        | BanOnReplyCommand of BanOnReplyCommandContext
+        | BanOnReplyCommand of ActionOnReplyCommandContext
         | UnbanCommand of UnbanCommandContext
+        | UnbanOnReplyCommand of ActionOnReplyCommandContext
         | DoNothingCommand
     
     type CommandError =
@@ -346,10 +347,17 @@ module Processing =
         | BanMessage of UserUsername * BanMessage * CommandError array
         | BanOnReplyMessage of UserUsername * BanOnReplyMessage * CommandError array
         | UnbanMessage of UserUsername * UnbanMessage * CommandError array
+        | UnbanOnReplyMessage of UserUsername * UnbanMessage * CommandError array
         
     let parseReplyMessage (context: ReplyToMessageContext): Command =
-        if context.MessageText.StartsWith(%context.BotUsername) && context.MessageText.Contains("ban") then
-            let context = {
+        let messageText = context.MessageText
+        let botMentioned = messageText.StartsWith(%context.BotUsername)
+        
+        // bot nickname and command are delimited by space
+        let hasUnbanWord = messageText.Contains(" unban")
+        let hasBanWord = messageText.Contains(" ban") 
+        
+        let context = {
                 From = %context.FromUsername
                 MessageId = %context.Message.MessageId
                 ReplyToMessageId = %context.ReplyToMessage.MessageId
@@ -358,10 +366,12 @@ module Processing =
                 Username = context.ReplyToUser.Username
                            |> Option.map ^ fun username -> %(sprintf "@%s" username)
             }
-            BanOnReplyCommand context
-        else
-            DoNothingCommand
-        
+                
+        match (botMentioned, hasBanWord, hasUnbanWord) with
+            | (true, true, false) -> BanOnReplyCommand context
+            | (true, false, true) -> UnbanOnReplyCommand context
+            | _ -> DoNothingCommand
+                            
     let parseTextMessage (context: TextMessageContext): Command =
         match Parser.parse %context.BotUsername context.MessageText with
         | BotCommand(Command((Usernames usernames), Ban(duration))) ->
@@ -496,6 +506,38 @@ module Processing =
             }
             
             return Some <| UnbanMessage(context.From, message, errors)
+        | UnbanOnReplyCommand context ->
+            let! username = async {
+                match context.Username with
+                | Some username ->
+                    do! dataApi.UpsertUsers [DataAccess.User(UserId = %context.UserId, Username = %username)]
+                    return username
+                | None ->
+                    let! username = dataApi.GetUsernameByUserId context.UserId
+                    return username
+                           |> Option.map ^ fun name -> %(sprintf "@%s" %name)
+                           |> Option.defaultValue %"unknown user"
+            }
+            
+            do! botApi.DeleteMessage context.ChatId context.MessageId
+            
+            let requests =
+                [for chat in botSettings.ChatsToMonitor.Set do
+                    yield botApi.UnbanUser chat username
+                    |> Async.Map ^ fun result ->
+                       Result.mapError ApiError result]
+                    
+            let! errors =
+                requests
+                |> Async.Parallel
+                |> Async.Map getErrors
+            
+            let message = {
+                Chats = botSettings.ChatsToMonitor.Set
+                Usernames = Set.empty.Add username
+            }
+            
+            return Some <| UnbanOnReplyMessage(context.From, message, errors)
         | DoNothingCommand ->
             return None
     }
