@@ -388,3 +388,17 @@ let ``formatMessage returns correct message for unban``() = async {
     
     Assert.Equal(expected, formatMessage commandMessage)
 }
+
+[<Fact>]
+let ``formatMessage returns correct message for unban on reply``() = async {
+    let message = {
+      Usernames = [%"@user1"; %"@user2"]
+      Chats = [%"@chat1"; %"@chat2"]
+    }
+    
+    let expected = "Unban on reply command from: @user\n\nUnbanned @user1, @user2 in chats @chat1, @chat2"
+    
+    let commandMessage = UnbanOnReplyMessage(%"user", message, [||])
+    
+    Assert.Equal(expected, formatMessage commandMessage)
+}
