@@ -6,6 +6,7 @@
         <ServerGarbageCollection>false</ServerGarbageCollection>
         <TieredCompilation>true</TieredCompilation>
         <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+        <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
     </PropertyGroup>
 
     <ItemGroup>

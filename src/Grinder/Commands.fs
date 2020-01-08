@@ -593,3 +593,5 @@ module Processing =
             sprintf "%s%s" (formatHeader "Unban" fromUsername message) (concatErrors errors)
         | BanOnReplyMessage(fromUsername, message, errors) ->
             sprintf "%s%s" (formatHeader "Ban on reply" fromUsername message) (concatErrors errors)
+        | UnbanOnReplyMessage (fromUsername, message, errors) ->
+            sprintf "%s%s" (formatHeader "Unban on reply" fromUsername message) (concatErrors errors)
