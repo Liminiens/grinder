@@ -2,6 +2,7 @@ FParsec
 FSharp.Core
 FSharp.UMX
 Funogram
+Funogram.Telegram
 HttpToSocks5Proxy
 Microsoft.Extensions.Configuration
 Microsoft.Extensions.Configuration.Abstractions

@@ -1,9 +1,10 @@
 module Grinder.CommandsTests
 
+open FSharp.Core
 open System
 open System.Collections
 open System.Collections.Generic
-open Funogram.Types
+open Funogram.Telegram.Types
 open Grinder.Commands.Processing
 open Grinder.Types
 open FSharp.UMX
@@ -52,7 +53,7 @@ type NotValidReplyMessageGenerator() =
                                      From =  None };
                           ReplyToMessage =
                               { defaultMessage
-                                with NewChatMember = None
+                                with NewChatMembers = None
                                      From =  None } }
                     yield
                         { Message =
@@ -61,7 +62,7 @@ type NotValidReplyMessageGenerator() =
                                      From =  Some { defaultUser with Username = Some "user" } };
                           ReplyToMessage =
                               { defaultMessage
-                                with NewChatMember = None
+                                with NewChatMembers = None
                                      From =  None } }
                     yield
                         { Message =
@@ -70,7 +71,7 @@ type NotValidReplyMessageGenerator() =
                                      From =  None };
                           ReplyToMessage =
                               { defaultMessage
-                                with NewChatMember = None
+                                with NewChatMembers = None
                                      From =  Some { defaultUser with Username = Some "user" } } }
                     yield
                         { Message =
@@ -79,7 +80,7 @@ type NotValidReplyMessageGenerator() =
                                      From =  None };
                           ReplyToMessage =
                               { defaultMessage
-                                with NewChatMember = Some { defaultUser with Username = Some "user" } } }
+                                 with NewChatMembers = Some (Seq.singleton { defaultUser with Username = Some "user" }) } }
                 }
                 |> Seq.map (fun i -> [|box i|])
             s.GetEnumerator()
@@ -145,7 +146,7 @@ let ``prepareReplyMessage returns Some when reply is to message``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Equal(replyMessage.ReplyToUser, replyToUser)
+        Assert.Contains(replyToUser, replyMessage.ReplyToUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -164,7 +165,7 @@ let ``prepareReplyMessage returns Some when someone added chat member``() =
     let reply = 
         { defaultMessage
             with From =  Some user
-                 NewChatMember = Some newUser }
+                 NewChatMembers = Some (Seq.singleton newUser) }
         
     match prepareReplyToMessage botUsername { Message = message; ReplyToMessage = reply } with
     | Some replyMessage ->
@@ -172,7 +173,7 @@ let ``prepareReplyMessage returns Some when someone added chat member``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Equal(replyMessage.ReplyToUser, newUser)
+        Assert.Same(replyMessage.ReplyToUser, Seq.singleton newUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -189,7 +190,7 @@ let ``prepareReplyMessage returns Some when new chat member``() =
     
     let reply = 
         { defaultMessage
-            with NewChatMember = Some newUser }
+            with NewChatMembers = Some (Seq.singleton newUser) }
         
     match prepareReplyToMessage botUsername { Message = message; ReplyToMessage = reply } with
     | Some replyMessage ->
@@ -197,7 +198,7 @@ let ``prepareReplyMessage returns Some when new chat member``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Equal(replyMessage.ReplyToUser, newUser)
+        Assert.Contains(newUser, replyMessage.ReplyToUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -222,7 +223,7 @@ let ``prepareReplyMessage returns Some when message is from someone``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Equal(replyMessage.ReplyToUser, newUser)
+        Assert.Contains(newUser, replyMessage.ReplyToUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()

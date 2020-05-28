@@ -2,7 +2,7 @@
 
 open FSharp.UMX
 open Funogram
-open Funogram.Types
+open Funogram.Telegram.Types
 open Xunit
 
 open Grinder.Commands.Processing
@@ -16,7 +16,7 @@ let private replyContext = {
     BotUsername = %"@testbot"
     Message = defaultMessage
     MessageText = "text"
-    ReplyToUser = replyToUser
+    ReplyToUser = Seq.singleton replyToUser
     ReplyToMessage = defaultMessage
     FromUsername = %"@user"
     ChatUsername = %"@user"

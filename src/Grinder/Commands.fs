@@ -4,7 +4,7 @@ open System
 open Grinder
 open Grinder.Types
 open FSharp.UMX
-open Funogram.Api
+open Funogram.Telegram.Types
 
 module Parser =
     open FParsec
@@ -152,7 +152,7 @@ module Processing =
         BotUsername: UserUsername
         Message: Message
         MessageText: string
-        ReplyToUser: User
+        ReplyToUser: User seq
         ReplyToMessage: Message
         FromUsername: UserUsername
         ChatUsername: ChatUsername
@@ -221,7 +221,7 @@ module Processing =
         |> Option.bind ^ fun (chatUsername, botUsername, message, username, text) ->
             //if someone added user
             if reply.ReplyToMessage.From = reply.Message.From then
-                reply.ReplyToMessage.NewChatMember
+                reply.ReplyToMessage.NewChatMembers
                 |> Option.map ^ fun user ->
                      { BotUsername = %(sprintf "@%s" botUsername)
                        Message = message
@@ -236,13 +236,13 @@ module Processing =
                   { BotUsername = %(sprintf "@%s" botUsername)
                     Message = message
                     MessageText = text
-                    ReplyToUser = from
+                    ReplyToUser = Seq.singleton from
                     ReplyToMessage = reply.ReplyToMessage
                     FromUsername = %username
                     ChatUsername = %(sprintf "@%s" chatUsername) }
                   |> Some
                 | None ->
-                   reply.ReplyToMessage.NewChatMember
+                   reply.ReplyToMessage.NewChatMembers
                    |> Option.map ^ fun user ->
                         { BotUsername = %(sprintf "@%s" botUsername)
                           Message = message
@@ -561,7 +561,7 @@ module Processing =
             do! ApiExt.sendMessage botSettings.ChannelId config e
     }
     
-    let processNewUsersCommand (users: Types.User seq): Async<unit> =
+    let processNewUsersCommand (users: User seq): Async<unit> =
         users
         |> Seq.filter ^ fun u -> Option.isSome u.Username
         |> Seq.map ^ fun u ->

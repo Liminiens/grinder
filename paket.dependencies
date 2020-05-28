@@ -4,20 +4,21 @@ source https://api.nuget.org/v3/index.json
 
 nuget FSharp.Core 4.7.2
 nuget Foq 1.8.0
-nuget FParsec 1.0.3
-nuget FSharp.Control.AsyncSeq 2.0.21
-nuget FSharp.UMX 1.0.0-preview-001 prerelease
-nuget Funogram 1.3.1
-nuget Newtonsoft.Json 12.0.2
+nuget FParsec 1.1.1
+nuget FSharp.Control.AsyncSeq 2.0.24
+nuget HttpToSocks5Proxy 1.1.3
+nuget FSharp.UMX 1.0.0
+nuget Funogram 2.0.1
+nuget Funogram.Telegram 4.4.2
+nuget Newtonsoft.Json 12.0.3
 nuget TaskBuilder.fs 2.1.0
 nuget TDLib 1.3.0
 nuget tdlib.native 1.3.0
 nuget xunit 2.4.1
 nuget xunit.runner.visualstudio 2.4.1
-nuget Microsoft.EntityFrameworkCore.Design 2.2.4
-nuget Microsoft.EntityFrameworkCore.Sqlite 2.2.4
+nuget Microsoft.EntityFrameworkCore.Design 3.1.4
+nuget Microsoft.EntityFrameworkCore.Sqlite 3.1.4
 nuget Microsoft.EntityFrameworkCore.Sqlite.Design 1.1.6
-nuget HttpToSocks5Proxy 1.1.3
 nuget Microsoft.Extensions.Configuration 3.1.4
 nuget Microsoft.Extensions.Configuration.Abstractions 3.1.4
 nuget Microsoft.Extensions.Configuration.Binder 3.1.4

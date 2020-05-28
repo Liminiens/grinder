@@ -1,6 +1,6 @@
 namespace Grinder
 
-open Funogram
+open Funogram.Telegram.Types
 open Xunit
 
 [<RequireQualifiedAccess>]    
@@ -13,8 +13,6 @@ module Assert =
     
 [<AutoOpen>]
 module Funogram =
-    open Funogram.Types    
-
     let defaultUser =
          { Id = -1L; IsBot = false; FirstName = null; LastName = None; Username = None; LanguageCode = None }
 
@@ -27,10 +25,10 @@ module App =
     
     let defaultTextMessage =
         { BotUsername = %String.Empty
-          Message = Types.defaultMessage
+          Message = defaultMessage
           MessageText = String.Empty
-          ReplyToUser = defaultUser
-          ReplyToMessage = Types.defaultMessage
+          ReplyToUser = Seq.singleton defaultUser
+          ReplyToMessage = defaultMessage
           FromUsername = %String.Empty
           ChatUsername = %String.Empty }
         

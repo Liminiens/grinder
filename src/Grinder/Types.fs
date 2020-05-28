@@ -3,7 +3,7 @@ namespace Grinder.Types
 open FSharp.UMX
 open System
 open System.IO
-open Funogram.Types
+open Funogram.Telegram.Types
 open Grinder
 
 [<Measure>] type private userUsername

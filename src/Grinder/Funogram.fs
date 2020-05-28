@@ -2,12 +2,15 @@ module Grinder.FunogramExt
 
 open System
 open Grinder.Types
-open Funogram.Api
-open Funogram.Bot
-open FSharp.UMX
 open Funogram
-open Funogram.RequestsTypes
+open Funogram.Api
+open Funogram.Telegram.Bot
+open Funogram.Telegram.Types
+open Funogram.Telegram.Api
+open Funogram.Api
+open Funogram.Telegram.RequestsTypes
 open Funogram.Types
+open FSharp.UMX
 
 let private jitter = new Random()
 
@@ -110,8 +113,17 @@ module ApiExt =
     let unrestrictUserByUsername context chat username = async {
         match! Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
+            let permissions = 
+              { ChatPermissions.CanAddWebPagePreviews = Some false
+                CanSendMessages = Some false
+                CanSendMediaMessages = Some false 
+                CanSendPools = Some false 
+                CanSendOtherMessages = Some false
+                CanChangeInfo = Some false 
+                CanInviteUsers = Some false 
+                CanPinMessages = Some false }
             let! restrictResult = 
-                restrictChatMemberBase (Funogram.Types.String(chat)) userId None (Some true) (Some true) (Some true) (Some true)
+                restrictChatMemberBase (ChatId.String chat) userId permissions None
                 |> callApiWithDefaultRetry context
             match restrictResult with
             | Ok _ ->
@@ -129,7 +141,7 @@ module ApiExt =
         
     let prepareAndDownloadFile config fileId =
         async {
-            match! Api.getFile fileId |> callApiWithDefaultRetry config with
+            match! getFile fileId |> callApiWithDefaultRetry config with
             | Ok data ->
                 let uri =
                     let filePath = Option.get data.FilePath

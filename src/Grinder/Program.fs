@@ -6,8 +6,8 @@ open Grinder
 open Grinder.DataAccess
 open Grinder.Commands
 open Grinder.Types
-open Funogram.Api
-open Funogram.Bot
+open Funogram.Telegram.Bot
+open Funogram.Telegram
 open Funogram.Types
 open FunogramExt
     
