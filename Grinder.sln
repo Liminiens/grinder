@@ -3,6 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.28803.156
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{E4914BD3-A0A2-46ED-B666-9D1A0414E9D4}"
+	ProjectSection(SolutionItems) = preProject
+		paket.dependencies = paket.dependencies
+	EndProjectSection
+EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Grinder", "src\Grinder\Grinder.fsproj", "{D685DE6C-6787-4CE3-96BF-C103948B86BF}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Grinder.Tests", "tests\Grinder.Tests\Grinder.Tests.fsproj", "{72D53D7B-5E97-4314-81E3-46C2BBF78290}"

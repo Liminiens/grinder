@@ -1,18 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <TargetFramework>netcoreapp3.1</TargetFramework>
-        <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
-        <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <Compile Include="Library.fs" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="FSharp.Core" Version="4.6.2" />
-        <PackageReference Include="TaskBuilder.fs" Version="2.1.0" />
-    </ItemGroup>
-
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+    <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

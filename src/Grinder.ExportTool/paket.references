@@ -1,0 +1,5 @@
+FSharp.Control.AsyncSeq
+FSharp.Core
+Newtonsoft.Json
+TDLib
+tdlib.native

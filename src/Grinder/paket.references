@@ -1,0 +1,11 @@
+FParsec
+FSharp.Core
+FSharp.UMX
+Funogram
+HttpToSocks5Proxy
+Microsoft.Extensions.Configuration
+Microsoft.Extensions.Configuration.Abstractions
+Microsoft.Extensions.Configuration.Binder
+Microsoft.Extensions.Configuration.EnvironmentVariables
+Microsoft.Extensions.Configuration.Json
+Newtonsoft.Json
