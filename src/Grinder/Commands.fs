@@ -299,7 +299,7 @@ module Processing =
                 let chatsText =
                     __.Chats
                     |> Seq.map ^ fun chat -> %chat
-                    |> String.join ", "
+                    |> String.concat ", "
                         
                 sprintf "Banned %i (%s) in chats %s forever" %__.UserId %__.Username chatsText
     
@@ -318,12 +318,12 @@ module Processing =
                 let usernamesText =
                     __.Usernames
                     |> Seq.map ^ fun username -> %username
-                    |> String.join ", "
+                    |> String.concat ", "
                     
                 let chatsText =
                     __.Chats
                     |> Seq.map ^ fun chat -> %chat
-                    |> String.join ", "
+                    |> String.concat ", "
                         
                 sprintf "Banned %s in chats %s %s" usernamesText chatsText durationText
                 
@@ -335,12 +335,12 @@ module Processing =
                 let usernamesText =
                     __.Usernames
                     |> Seq.map ^ fun username -> %username
-                    |> String.join ", "
+                    |> String.concat ", "
                     
                 let chatsText =
                     __.Chats
                     |> Seq.map ^ fun chat -> %chat
-                    |> String.join ", "
+                    |> String.concat ", "
                 sprintf "Unbanned %s in chats %s" usernamesText chatsText
     
     type CommandMessage = 
@@ -580,7 +580,7 @@ module Processing =
                 String.Empty
             | text ->
                 text
-                |> String.join "\n"
+                |> String.concat "\n"
                 |> sprintf "\n\n%s"
         
         let formatHeader commandName username (message: IMessage) =
