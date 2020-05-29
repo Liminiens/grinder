@@ -6,13 +6,12 @@ open Hopac.Infixes
 [<RequireQualifiedAccess>]
 module UserStream =
   let private src = Stream.Src.create<DataAccess.User>()
-  let private stream = Stream.Src.tap src
   
   let push user =
     Stream.Src.value src user
 
   do
-    stream
+    Stream.Src.tap src
     |> Stream.groupByFun (fun _ ack group -> ack, group) (fun _ -> 0)
     |> Stream.mapJob (fun (ack, group) ->
       timeOutMillis 1000
