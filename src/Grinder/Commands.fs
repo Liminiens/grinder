@@ -58,7 +58,9 @@ module Parser =
     | Ban of BanDuration
     | Unban
 
-  type Command = Command of Usernames * CommandAction
+  type Command = 
+    | BotUsernameCommand of Usernames * CommandAction
+    | BotTextBanCommand
 
   let str s = pstring s
       
@@ -80,6 +82,9 @@ module Parser =
   let pbotUsername botUsername : Parser<string, unit> =
     spaces >>. (str botUsername) .>> spaces
     
+  let pBanText: Parser<Command, unit> =
+    spaces >>. (str "/ban") >>% BotTextBanCommand
+
   let many1Usernames: Parser<string list, unit> =
     many1 (pusername .>> spaces)
   
@@ -120,7 +125,9 @@ module Parser =
 
   let parseCommand botUsername =
     pbotUsername botUsername >>.
-    pipe2 many1Usernames pcommandAction (fun usernames command -> Command(Usernames(Array.ofList usernames), command))
+    pipe2 many1Usernames pcommandAction (fun usernames command -> 
+      BotUsernameCommand(Usernames(Array.ofList usernames), command)
+    )
       
   let runCommandParser botUsername str: ParserResult<Command, unit> =
     run (parseCommand botUsername) str
@@ -242,6 +249,14 @@ module Processing =
     Username: string option
   }
   
+  type TextBanCommandContext = {
+    From: string
+    MessageId: int64
+    ChatId: int64
+    Username: string option
+    Until: BanDuration
+  }
+
   type BanCommandContext = {
     From: string
     MessageId: int64
@@ -258,6 +273,7 @@ module Processing =
   }
   
   type Command =
+    | TextBanCommand of TextBanCommandContext
     | BanCommand of BanCommandContext
     | BanOnReplyCommand of ActionOnReplyCommandContext
     | UnbanCommand of UnbanCommandContext
@@ -352,7 +368,7 @@ module Processing =
                           
   let parseTextMessage (context: TextMessageContext): Command =
     match Parser.parse context.BotUsername context.MessageText with
-    | BotCommand(Command((Usernames usernames), Ban(duration))) ->
+    | BotCommand(BotUsernameCommand((Usernames usernames), Ban(duration))) ->
       let context = {
         From = context.FromUsername
         MessageId = context.Message.MessageId
@@ -362,7 +378,7 @@ module Processing =
       }
       BanCommand context
 
-    | BotCommand(Command((Usernames usernames), Unban)) ->
+    | BotCommand(BotUsernameCommand((Usernames usernames), Unban)) ->
       let context = {
         From = context.FromUsername
         MessageId = context.Message.MessageId
@@ -370,6 +386,26 @@ module Processing =
         Usernames = usernames
       }
       UnbanCommand context
+
+    | BotCommand BotTextBanCommand ->
+      match context.Message.ReplyToMessage with
+      | Some reply ->
+        match reply.From with
+        | Some user ->
+          let context = {
+            From = context.FromUsername
+            MessageId = context.Message.MessageId
+            ChatId = context.Message.Chat.Id
+            Username = user.Username
+            Until = BanDuration.Forever
+          }
+          TextBanCommand context
+
+        | None ->
+          DoNothingCommand
+
+      | None ->
+        DoNothingCommand
 
     | InvalidCommand _ ->
       DoNothingCommand
@@ -389,6 +425,66 @@ module Processing =
       |> not
     
     match command with
+    | TextBanCommand context ->
+      ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
+      |> Job.Ignore
+      |> queue
+
+      ApiExt.deleteMessageWithRetry config context.ChatId context.ReplyToMessageId 
+      |> Job.Ignore
+      |> queue
+      
+      do
+        let username = 
+          match context.Username with
+          | Some username -> username
+          | None -> null
+        
+        DataAccess.User(UserId = context.UserId, Username = username)
+        |> UserStream.push
+        |> queue
+
+      let! username = job {
+        match context.Username with
+        | Some username ->
+          return username
+
+        | None ->
+          let! username = Datastore.getUsernameByUserId context.UserId
+          return 
+            username
+            |> Option.map ^ fun name -> (sprintf "@%s" name)
+            |> Option.defaultValue "unknown user"
+      }
+
+      let requests =
+        if userCanBeBanned username then
+          [|
+            for chat in botSettings.ChatsToMonitor.Set do
+              yield 
+                ApiExt.banUserByUserId config chat context.UserId (DateTime.UtcNow.AddMonths(13))
+                |> Job.map ^ fun result ->
+                  Result.mapError ApiError result
+          |]
+        else
+          [|
+            sprintf "Cannot ban admin %s" username
+            |> createCommandError AdminBanNotAllowedError
+            |> Job.result
+          |]
+              
+      let! errors =
+        requests
+        |> Job.conCollect
+        |> Job.map getErrors
+      
+      let message = {
+        Chats = botSettings.ChatsToMonitor.Set
+        Username = username
+        UserId = context.UserId
+      }
+      
+      return Some <| BanOnReplyMessage(context.From, message, errors)
     | BanCommand context ->
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
       |> queueIgnore
