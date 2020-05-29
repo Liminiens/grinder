@@ -39,10 +39,15 @@ module Program =
   }
   
   let createHttpClient config =
-    let messageHandler = new HttpClientHandler()
-    messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
-    messageHandler.UseProxy <- true
-    new HttpClient(messageHandler)
+    match config with
+    | Some config ->
+      let messageHandler = new HttpClientHandler()
+      messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
+      messageHandler.UseProxy <- true
+      new HttpClient(messageHandler)
+
+    | None ->
+      new HttpClient()
   
   let config =
     ConfigurationBuilder()
@@ -56,7 +61,13 @@ module Program =
   let botConfiguration = {
     defaultConfig with
       Token = config.Token
-      Client = createHttpClient config.Socks5Proxy
+      Client = 
+        match (box config.Socks5Proxy) with
+        | null ->
+          createHttpClient None
+
+        | proxy -> 
+          createHttpClient (Some (proxy :?> Socks5Configuration))
       AllowedUpdates = ["message"] |> Seq.ofList |> Some
   }
 
