@@ -2,13 +2,11 @@
 
 open Hopac
 open Microsoft.Extensions.Configuration
-open Funogram
 open Grinder
 open Grinder.DataAccess
 open Grinder.Commands
 open Grinder.Types
 open Funogram.Telegram.Bot
-open Funogram.Telegram
 open Funogram.Types
 open FunogramExt
     
@@ -83,11 +81,11 @@ module Program =
       match updateType with
       | Some newMessage ->
         match newMessage with
-        | NewAdminPrivateMessage document ->
+        | NewAdminUsersFileMessage document ->
           do! processAdminCommand settings context.Config document.FileId
 
-        | NewUsersAdded users ->
-          do! processNewUsersCommand users
+        | NewUsersAddedToChat users ->
+          do! processNewUsersAddedToChat users
 
         | NewMessage message ->
           match prepareTextMessage context.Me.Username message with
@@ -120,7 +118,7 @@ module Program =
           | None -> ()
         | IgnoreMessage -> ()
       | None -> ()
-    }
+    } |> queue
 
   [<EntryPoint>]
   let main _ =
@@ -139,7 +137,7 @@ module Program =
 
       do! 
         Mailbox.take updateBox
-        |> Job.bind (fun update -> processUpdate update)
+        |> Job.map (fun update -> processUpdate update)
         |> Job.forever
     } 
     |> queue

@@ -540,7 +540,7 @@ module Processing =
           |> Job.Ignore
     }
   
-  let processNewUsersCommand (users: User seq): Job<unit> =
+  let processNewUsersAddedToChat (users: User seq): Job<unit> =
     users
     |> Seq.filter ^ fun u -> Option.isSome u.Username
     |> Seq.map (fun u ->

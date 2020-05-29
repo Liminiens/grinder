@@ -28,9 +28,9 @@ type ReplyMessage = { Message: Message; ReplyToMessage: Message }
 type UpdateType =
   | IgnoreMessage
   | NewReplyMessage of ReplyMessage
-  | NewUsersAdded of User list
+  | NewUsersAddedToChat of User list
   | NewMessage of Message
-  | NewAdminPrivateMessage of Document
+  | NewAdminUsersFileMessage of Document
 
 [<RequireQualifiedAccess>]   
 module UpdateType =
@@ -40,7 +40,7 @@ module UpdateType =
       if message.Chat.Id = settings.AdminUserId then
         match message.Document with
         | Some document ->
-          NewAdminPrivateMessage document
+          NewAdminUsersFileMessage document
         | None ->
           IgnoreMessage
 
@@ -56,7 +56,7 @@ module UpdateType =
 
         match message.NewChatMembers with
         | Some users ->
-          NewUsersAdded(List.ofSeq users)
+          NewUsersAddedToChat(List.ofSeq users)
 
         | None ->
           if not hasCodeBlock then

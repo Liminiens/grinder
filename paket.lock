@@ -13,9 +13,6 @@ NUGET
       FSharp.Core (>= 3.1.2) - restriction: >= net45
       FSharp.Core (>= 4.3.2) - restriction: && (< net45) (>= netstandard2.0)
     FSharp.Core (4.7.2)
-    FSharp.UMX (1.0)
-      FSharp.Core (>= 3.1.2.5) - restriction: >= net45
-      FSharp.Core (>= 4.3.4) - restriction: && (< net45) (>= netstandard2.0)
     Funogram (2.0.1)
       FSharp.Core (>= 4.7) - restriction: || (>= net45) (>= netstandard2.0)
       System.Net.Http (>= 4.3.4) - restriction: || (>= net45) (>= netstandard2.0)

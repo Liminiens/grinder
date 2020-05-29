@@ -8,7 +8,6 @@ nuget FParsec 1.1.1
 nuget Hopac 0.4.1
 nuget FSharp.Control.AsyncSeq 2.0.24
 nuget HttpToSocks5Proxy 1.1.3
-nuget FSharp.UMX 1.0.0
 nuget Funogram 2.0.1
 nuget Funogram.Telegram 4.4.2
 nuget Newtonsoft.Json 12.0.3
