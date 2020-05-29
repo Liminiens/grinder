@@ -326,7 +326,6 @@ module Processing =
     | BanMessage of string * BanMessage * CommandError array
     | BanOnReplyMessage of string * BanOnReplyMessage * CommandError array
     | UnbanMessage of string * UnbanMessage * CommandError array
-    | UnbanOnReplyMessage of string * UnbanMessage * CommandError array
       
   let parseReplyMessage (context: ReplyToMessageContext): Command =
     let messageText = context.MessageText
@@ -578,6 +577,3 @@ module Processing =
 
     | BanOnReplyMessage(fromUsername, message, errors) ->
       sprintf "%s%s" (formatHeader "Ban on reply" fromUsername message) (concatErrors errors)
-
-    | UnbanOnReplyMessage (fromUsername, message, errors) ->
-      sprintf "%s%s" (formatHeader "Unban on reply" fromUsername message) (concatErrors errors)
