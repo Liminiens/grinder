@@ -7,7 +7,6 @@ open System.Collections.Generic
 open Funogram.Telegram.Types
 open Grinder.Commands.Processing
 open Grinder.Types
-open FSharp.UMX
 open Foq
 open Grinder.Commands.Parser
 open Xunit
@@ -146,7 +145,7 @@ let ``prepareReplyMessage returns Some when reply is to message``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Contains(replyToUser, replyMessage.ReplyToUsers)
+        Assert.Equal(replyToUser, replyMessage.ReplyToUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -173,7 +172,7 @@ let ``prepareReplyMessage returns Some when someone added chat member``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Same(replyMessage.ReplyToUsers, Seq.singleton newUser)
+        Assert.Same(replyMessage.ReplyToUser, Seq.singleton newUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -198,7 +197,7 @@ let ``prepareReplyMessage returns Some when new chat member``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Contains(newUser, replyMessage.ReplyToUsers)
+        Assert.Equal(newUser, replyMessage.ReplyToUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -223,7 +222,7 @@ let ``prepareReplyMessage returns Some when message is from someone``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Contains(newUser, replyMessage.ReplyToUsers)
+        Assert.Equal(newUser, replyMessage.ReplyToUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -250,7 +249,7 @@ let ``prepareReplyToMessage returns None when bot username is None``() =
 let ``authorize returns CommandAllowed``() =
     let settings = createSettings [|"chat"|] [|"user"|]
     
-    let message = { defaultTextMessage with FromUsername = %"user"; ChatUsername = %"chat" }
+    let message = { defaultTextMessage with FromUsername = "user"; ChatUsername = "chat" }
     
     match authorize settings message.FromUsername message.ChatUsername with
     | CommandAllowed ->
@@ -267,7 +266,7 @@ let ``authorize returns CommandAllowed``() =
 let ``authorize returns CommandNotAllowed``(chat: string, user: string) =
     let settings = createSettings [|chat|] [|user|]
     
-    let message = { defaultTextMessage with FromUsername = %"user"; ChatUsername = %"chat" }
+    let message = { defaultTextMessage with FromUsername = "user"; ChatUsername = "chat" }
     
     match authorize settings message.FromUsername message.ChatUsername with
     | CommandAllowed ->
@@ -280,9 +279,9 @@ let ``BanOnReplyMessage FormatAsString returns correct message``() =
     let expected = """Banned 1 (user) in chats @chat1, @chat2 forever"""
     
     let message = {
-      Username = %"user"
-      UserId = %1L
-      Chats = [%"@chat1"; %"@chat2"]
+      Username = "user"
+      UserId = 1L
+      Chats = Set.ofSeq [|"@chat1"; "@chat2"|]
     }
     
     let messageText = (message :> IMessage).FormatAsString()
@@ -294,9 +293,9 @@ let ``BanMessage FormatAsString returns correct message when date is less than a
     let expected = """Banned @user1, @user2 in chats @chat1, @chat2 until 2017-01-01 02:02:02 UTC"""
     
     let message = {
-      Usernames = [%"@user1"; %"@user2"]
+      Usernames = [|"@user1"; "@user2"|]
       Until = DateTime(2017,1,1,2,2,2) |> Timed
-      Chats = [%"@chat1"; %"@chat2"]
+      Chats = Set.ofSeq [|"@chat1"; "@chat2"|]
     }
     
     let messageText = (message :> IMessage).FormatAsString()
@@ -309,9 +308,9 @@ let ``BanMessage FormatAsString returns correct message when date is more than a
     let expected = """Banned @user1, @user2 in chats @chat1, @chat2 forever"""
     
     let message = {
-      Usernames = [%"@user1"; %"@user2"]
+      Usernames = [|"@user1"; "@user2"|]
       Until = DateTime.UtcNow.AddMonths(13) |> Timed
-      Chats = [%"@chat1"; %"@chat2"]
+      Chats = Set.ofSeq ["@chat1"; "@chat2"]
     }
     
     let messageText = (message :> IMessage).FormatAsString()
@@ -323,8 +322,8 @@ let ``UnbanMessage FormatAsString returns correct message``() =
     let expected = """Unbanned @user1, @user2 in chats @chat1, @chat2"""
     
     let message = {
-      Usernames = [%"@user1"; %"@user2"]
-      Chats = [%"@chat1"; %"@chat2"]
+      Usernames = [|"@user1"; "@user2"|]
+      Chats = Set.ofSeq ["@chat1"; "@chat2"]
     }
     
     let messageText = (message :> IMessage).FormatAsString()
@@ -334,14 +333,14 @@ let ``UnbanMessage FormatAsString returns correct message``() =
 [<Fact>]
 let ``formatMessage returns correct message for ban message``() = async {
     let message = {
-      Usernames = [%"@user1"; %"@user2"]
+      Usernames = [|"@user1"; "@user2"|]
       Until = DateTime(2017,1,1,2,2,2) |> Timed
-      Chats = [%"@chat1"; %"@chat2"]
+      Chats = Set.ofSeq ["@chat1"; "@chat2"]
     }
     
     let expected = "Ban command from: @user\n\nBanned @user1, @user2 in chats @chat1, @chat2 until 2017-01-01 02:02:02 UTC\n\nApi error"
     
-    let commandMessage = BanMessage(%"user", message, [|ApiError("Api error")|])
+    let commandMessage = BanMessage("user", message, [|ApiError("Api error")|])
     
     Assert.Equal(expected, formatMessage commandMessage)
 }
@@ -349,14 +348,14 @@ let ``formatMessage returns correct message for ban message``() = async {
 [<Fact>]
 let ``formatMessage returns correct message for ban on reply message``() = async {
     let message = {
-      UserId = %1L
-      Username = %"@user1"
-      Chats = [%"@chat1"; %"@chat2"]
+      UserId = 1L
+      Username = "@user1"
+      Chats = Set.ofSeq ["@chat1"; "@chat2"]
     }
     
     let expected = "Ban on reply command from: @user\n\nBanned 1 (@user1) in chats @chat1, @chat2 forever\n\nApi error"
     
-    let commandMessage = BanOnReplyMessage(%"user", message, [|ApiError("Api error")|])
+    let commandMessage = BanOnReplyMessage("user", message, [|ApiError("Api error")|])
     
     Assert.Equal(expected, formatMessage commandMessage)
 }
@@ -364,14 +363,14 @@ let ``formatMessage returns correct message for ban on reply message``() = async
 [<Fact>]
 let ``formatMessage returns correct message for ban on reply message without errors``() = async {
     let message = {
-      UserId = %1L
-      Username = %"@user1"
-      Chats = [%"@chat1"; %"@chat2"]
+      UserId = 1L
+      Username = "@user1"
+      Chats = Set.ofSeq ["@chat1"; "@chat2"]
     }
     
     let expected = "Ban on reply command from: @user\n\nBanned 1 (@user1) in chats @chat1, @chat2 forever"
     
-    let commandMessage = BanOnReplyMessage(%"user", message, [||])
+    let commandMessage = BanOnReplyMessage("user", message, [||])
     
     Assert.Equal(expected, formatMessage commandMessage)
 }
@@ -379,13 +378,13 @@ let ``formatMessage returns correct message for ban on reply message without err
 [<Fact>]
 let ``formatMessage returns correct message for unban``() = async {
     let message = {
-      Usernames = [%"@user1"; %"@user2"]
-      Chats = [%"@chat1"; %"@chat2"]
+      Usernames = [|"@user1"; "@user2"|]
+      Chats = Set.ofSeq ["@chat1"; "@chat2"]
     }
     
     let expected = "Unban command from: @user\n\nUnbanned @user1, @user2 in chats @chat1, @chat2"
     
-    let commandMessage = UnbanMessage(%"user", message, [||])
+    let commandMessage = UnbanMessage("user", message, [||])
     
     Assert.Equal(expected, formatMessage commandMessage)
 }
@@ -393,13 +392,13 @@ let ``formatMessage returns correct message for unban``() = async {
 [<Fact>]
 let ``formatMessage returns correct message for unban on reply``() = async {
     let message = {
-      Usernames = [%"@user1"; %"@user2"]
-      Chats = [%"@chat1"; %"@chat2"]
+      Usernames = [|"@user1"; "@user2"|]
+      Chats = Set.ofSeq ["@chat1"; "@chat2"]
     }
     
     let expected = "Unban on reply command from: @user\n\nUnbanned @user1, @user2 in chats @chat1, @chat2"
     
-    let commandMessage = UnbanOnReplyMessage(%"user", message, [||])
+    let commandMessage = UnbanOnReplyMessage("user", message, [||])
     
     Assert.Equal(expected, formatMessage commandMessage)
 }

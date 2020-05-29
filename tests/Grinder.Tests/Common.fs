@@ -19,23 +19,22 @@ module Funogram =
 [<AutoOpen>]         
 module App =
     open System
-    open FSharp.UMX
     open Grinder.Types
     open Grinder.Commands.Processing
     
     let defaultTextMessage =
-        { BotUsername = %String.Empty
+        { BotUsername = String.Empty
           Message = defaultMessage
           MessageText = String.Empty
-          ReplyToUsers = Seq.singleton defaultUser
+          ReplyToUser = defaultUser
           ReplyToMessage = defaultMessage
-          FromUsername = %String.Empty
-          ChatUsername = %String.Empty }
+          FromUsername = String.Empty
+          ChatUsername = String.Empty }
         
     let createSettings chats users = {
         Token = String.Empty
-        ChatsToMonitor = ChatsToMonitor.Create chats
-        AllowedUsers = AllowedUsers.Create users
-        ChannelId = %123L
-        AdminUserId = %123L
+        ChatsToMonitor = ChatsToMonitor chats
+        AllowedUsers = AllowedUsers users
+        ChannelId = 123L
+        AdminUserId = 123L
     }

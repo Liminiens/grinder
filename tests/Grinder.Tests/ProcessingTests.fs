@@ -1,6 +1,5 @@
 ﻿module Grinder.ProcessingTests
 
-open FSharp.UMX
 open Funogram
 open Funogram.Telegram.Types
 open Xunit
@@ -13,13 +12,13 @@ let private replyToUser = {
 }
 
 let private replyContext = {
-    BotUsername = %"@testbot"
+    BotUsername = "@testbot"
     Message = defaultMessage
     MessageText = "text"
-    ReplyToUsers = Seq.singleton replyToUser
+    ReplyToUser = replyToUser
     ReplyToMessage = defaultMessage
-    FromUsername = %"@user"
-    ChatUsername = %"@user"
+    FromUsername = "@user"
+    ChatUsername = "@user"
 }
 
 [<Fact>]
@@ -28,14 +27,5 @@ let ``parseReplyMessage properly parses the ban command``() =
     let context = { replyContext with MessageText = inputMessage }
     let result = parseReplyMessage context
     match result with
-    | BanOnReplyCommand commandContext -> Assert.Equal(commandContext.UserId, %replyToUser.Id)
-    | _ -> Assert.Fail()
-
-[<Fact>]
-let ``parseReplyMessage properly parses the unban command``() =
-    let inputMessage = "@testbot unban"
-    let context = { replyContext with MessageText = inputMessage }
-    let result = parseReplyMessage context
-    match result with
-    | UnbanOnReplyCommand commandContext -> Assert.Equal(commandContext.UserId, %replyToUser.Id)
+    | BanOnReplyCommand commandContext -> Assert.Equal(commandContext.UserId, replyToUser.Id)
     | _ -> Assert.Fail()

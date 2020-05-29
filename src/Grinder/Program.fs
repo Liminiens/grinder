@@ -84,10 +84,10 @@ module Program =
       | Some newMessage ->
         match newMessage with
         | NewAdminPrivateMessage document ->
-            do! processAdminCommand settings context.Config document.FileId
+          do! processAdminCommand settings context.Config document.FileId
 
         | NewUsersAdded users ->
-            do! processNewUsersCommand users
+          do! processNewUsersCommand users
 
         | NewMessage message ->
           match prepareTextMessage context.Me.Username message with

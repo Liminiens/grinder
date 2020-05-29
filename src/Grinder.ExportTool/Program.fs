@@ -11,6 +11,10 @@ open System.Threading.Tasks
 open TdLib
 
 [<RequireQualifiedAccess>]
+module Task =
+  let Ignore task = task :> Task
+
+[<RequireQualifiedAccess>]
 module Observable =
     let ofType<'a, 'b> (obs: IObservable<'a>): IObservable<'b> =
         obs

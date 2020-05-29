@@ -155,7 +155,7 @@ module Processing =
     BotUsername: string
     Message: Message
     MessageText: string
-    ReplyToUsers: User array
+    ReplyToUser: User
     ReplyToMessage: Message
     FromUsername: string
     ChatUsername: string
@@ -222,46 +222,24 @@ module Processing =
       |> Option.map ^ fun chatUsername ->
         (chatUsername, botUsername, message, username, text)
     |> Option.bind ^ fun (chatUsername, botUsername, message, username, text) ->
-      //if someone added users
-      if reply.ReplyToMessage.From = reply.Message.From then
-        reply.ReplyToMessage.NewChatMembers
-        |> Option.map ^ fun user ->
-           { BotUsername = (sprintf "@%s" botUsername)
-             Message = message
-             MessageText = text
-             ReplyToUsers = Array.ofSeq user
-             ReplyToMessage = reply.ReplyToMessage
-             FromUsername = username
-             ChatUsername = (sprintf "@%s" chatUsername) }
-      else
-        match reply.ReplyToMessage.From with
-        | Some from -> 
-          { BotUsername = (sprintf "@%s" botUsername)
-            Message = message
-            MessageText = text
-            ReplyToUsers = Array.singleton from
-            ReplyToMessage = reply.ReplyToMessage
-            FromUsername = username
-            ChatUsername = (sprintf "@%s" chatUsername) }
-          |> Some
-        | None ->
-          reply.ReplyToMessage.NewChatMembers
-          |> Option.map ^ fun users ->
-            { BotUsername = (sprintf "@%s" botUsername)
-              Message = message
-              MessageText = text
-              ReplyToUsers = Array.ofSeq users
-              ReplyToMessage = reply.ReplyToMessage
-              FromUsername = username
-              ChatUsername = (sprintf "@%s" chatUsername) }
-                      
+      reply.ReplyToMessage.From
+      |> Option.map (fun user ->
+        { BotUsername = (sprintf "@%s" botUsername)
+          Message = message
+          MessageText = text
+          ReplyToUser = user
+          ReplyToMessage = reply.ReplyToMessage
+          FromUsername = username
+          ChatUsername = (sprintf "@%s" chatUsername) }
+      )
+                    
   type ActionOnReplyCommandContext = {
     From: string
     MessageId: int64
     ReplyToMessageId: int64
     ChatId: int64
-    UserIds: int64 array
-    Usernames: string array
+    UserId: int64
+    Username: string option
   }
   
   type BanCommandContext = {
@@ -295,7 +273,7 @@ module Processing =
   type BanOnReplyMessage =
     { Username: string
       UserId: int64
-      Chats: string array }
+      Chats: Set<string> }
 
     interface IMessage with
       member this.FormatAsString() =
@@ -363,15 +341,10 @@ module Processing =
       MessageId = context.Message.MessageId
       ReplyToMessageId = context.ReplyToMessage.MessageId
       ChatId = context.Message.Chat.Id
-      UserIds = context.ReplyToUsers |> Array.map (fun u -> u.Id)
-      Usernames = 
-        context.ReplyToUsers
-        |> Array.choose(fun user ->
-          user.Username
-          |> Option.map (fun username ->
-            (sprintf "@%s" username)
-          )
-        )
+      UserId = context.ReplyToUser.Id
+      Username = 
+        context.ReplyToUser.Username 
+        |> Option.map(fun u -> sprintf "@%s" u)
     }
             
     match (botMentioned, hasBanWord, hasUnbanWord) with
@@ -463,38 +436,44 @@ module Processing =
       |> Job.Ignore
       |> queue
       
-      let! username = async {
+      let! username = job {
         match context.Username with
         | Some username ->
-            do! dataApi.UpsertUsers [DataAccess.User(UserId = %context.UserId, Username = %username)]
-            return username
+          do! Datastore.upsertUsers [DataAccess.User(UserId = context.UserId, Username = username)]
+          return username
         | None ->
-            let! username = dataApi.GetUsernameByUserId context.UserId
-            return username
-                   |> Option.map ^ fun name -> %(sprintf "@%s" %name)
-                   |> Option.defaultValue %"unknown user"
+          let! username = Datastore.getUsernameByUserId context.UserId
+          return 
+            username
+            |> Option.map ^ fun name -> (sprintf "@%s" name)
+            |> Option.defaultValue "unknown user"
       }
 
       let requests =
         if userCanBeBanned username then
-            [for chat in botSettings.ChatsToMonitor.Set do
-                yield botApi.BanUserByUserId chat context.UserId (DateTime.UtcNow.AddMonths(13))
-                      |> Async.Map ^ fun result ->
-                            Result.mapError ApiError result]
+          [|
+            for chat in botSettings.ChatsToMonitor.Set do
+              yield 
+                ApiExt.banUserByUserId config chat context.UserId (DateTime.UtcNow.AddMonths(13))
+                |> Job.map ^ fun result ->
+                  Result.mapError ApiError result
+          |]
         else
-            [sprintf "Cannot ban admin %s" %username
-             |> createCommandError AdminBanNotAllowedError
-             |> async.Return]
+          [|
+            sprintf "Cannot ban admin %s" username
+            |> createCommandError AdminBanNotAllowedError
+            |> Job.result
+          |]
               
       let! errors =
-          requests
-          |> Async.Parallel
-          |> Async.Map getErrors
+        requests
+        |> Job.conCollect
+        |> Job.map getErrors
       
       let message = {
-          Chats = botSettings.ChatsToMonitor.Set
-          Username = username
-          UserId = context.UserId
+        Chats = botSettings.ChatsToMonitor.Set
+        Username = username
+        UserId = context.UserId
       }
       
       return Some <| BanOnReplyMessage(context.From, message, errors)
@@ -552,10 +531,14 @@ module Processing =
       | Ok stream ->
         let users = JsonNet.deserializeFromStream<DataAccess.User[]>(stream)
         do! Datastore.upsertUsers users
-        ApiExt.sendMessage botSettings.ChannelId config "Updated user database"
+        return!
+          ApiExt.sendMessage botSettings.ChannelId config "Updated user database"
+          |> Job.Ignore
 
       | Error e ->
-        ApiExt.sendMessage botSettings.ChannelId config e
+        return!
+          ApiExt.sendMessage botSettings.ChannelId config e
+          |> Job.Ignore
     }
   
   let processNewUsersCommand (users: User seq): Job<unit> =
