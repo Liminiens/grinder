@@ -127,7 +127,7 @@ module Program =
           | None -> ()
 
         | SaveUserMessage user ->
-          do! UserStream.pushUser user
+          do! UserStream.push user
 
         | IgnoreMessage -> ()
       | None -> ()

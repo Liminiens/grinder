@@ -8,7 +8,7 @@ module UserStream =
   let private src = Stream.Src.create<DataAccess.User>()
   let private stream = Stream.Src.tap src
   
-  let pushUser user =
+  let push user =
     Stream.Src.value src user
 
   do

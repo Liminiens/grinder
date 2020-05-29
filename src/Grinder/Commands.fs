@@ -438,7 +438,7 @@ module Processing =
           | None -> null
         
         DataAccess.User(UserId = context.UserId, Username = username)
-        |> UserStream.pushUser
+        |> UserStream.push
         |> queue
 
       let! username = job {
@@ -555,7 +555,7 @@ module Processing =
     |> Seq.filter ^ fun u -> Option.isSome u.Username
     |> Seq.map (fun u ->
       DataAccess.User(UserId = u.Id, Username = Option.get u.Username)
-      |> UserStream.pushUser
+      |> UserStream.push
     )
     |> Job.conIgnore
   
