@@ -528,6 +528,20 @@ module Processing =
     parseReplyMessage message
     |> executeCommand config settings
       
+  let processCommonTextMessage (message: Message) =
+    job {
+      match message.From with
+      | Some user ->
+        let username =
+          match user.Username with
+          | Some username -> username
+          | None -> null
+
+        let user = DataAccess.User(UserId = user.Id, Username = username)
+        do! UserStream.push user
+      | None -> ()
+    }
+
   let processAdminCommand (botSettings: BotDefaultSettings) (config: BotConfig) fileId: Job<unit> = 
     job {
       match! ApiExt.prepareAndDownloadFile config fileId with

@@ -107,9 +107,12 @@ module Program =
                 |> formatMessage
                 |> sendTextToChannel
                 |> queueIgnore
-              | None -> ()
-            | CommandNotAllowed -> ()
-          | None -> ()
+              | None ->
+                do! processCommonTextMessage message
+            | CommandNotAllowed ->
+              do! processCommonTextMessage message
+          | None ->
+            do! processCommonTextMessage message
 
         | NewReplyMessage reply ->
           match prepareReplyToMessage context.Me.Username reply with
@@ -122,11 +125,14 @@ module Program =
                 |> formatMessage
                 |> sendTextToChannel
                 |> queueIgnore
-              | None -> ()
-            | CommandNotAllowed -> ()
-          | None -> ()
+              | None ->
+                do! processCommonTextMessage reply.Message
+            | CommandNotAllowed ->
+              do! processCommonTextMessage reply.Message
+          | None ->
+            do! processCommonTextMessage reply.Message
 
-        | SaveUserMessage user ->
+        | CodeTextMessage user ->
           do! UserStream.push user
 
         | IgnoreMessage -> ()
