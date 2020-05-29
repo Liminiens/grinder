@@ -60,8 +60,6 @@ module Program =
       AllowedUpdates = ["message"] |> Seq.ofList |> Some
   }
 
-  do Config.set botConfiguration
-
   let settings = {
     Token = config.Token
     ChatsToMonitor = ChatsToMonitor config.ChatsToMonitor
@@ -92,7 +90,7 @@ module Program =
           | Some newMessage ->
             match authorize settings newMessage.FromUsername newMessage.ChatUsername with
             | CommandAllowed ->
-              match! parseAndExecuteTextMessage settings newMessage with
+              match! parseAndExecuteTextMessage settings context.Config newMessage with
               | Some message ->
                 message
                 |> formatMessage
@@ -107,7 +105,7 @@ module Program =
           | Some replyMessage ->
             match authorize settings replyMessage.FromUsername replyMessage.ChatUsername with
             | CommandAllowed ->
-              match! parseAndExecuteReplyMessage settings replyMessage with
+              match! parseAndExecuteReplyMessage settings context.Config replyMessage with
               | Some message ->
                 message
                 |> formatMessage
@@ -125,7 +123,6 @@ module Program =
     GrinderContext.MigrateUp()
     
     printfn "Starting bot"
-
     job {
       let onUpdate context =
         Mailbox.send updateBox context

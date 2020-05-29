@@ -374,7 +374,7 @@ module Processing =
     | InvalidCommand _ ->
       DoNothingCommand
               
-  let executeCommand (botSettings: BotDefaultSettings) command: Job<CommandMessage option> = job {
+  let executeCommand config (botSettings: BotDefaultSettings) command: Job<CommandMessage option> = job {
     let getErrors results =
       results
       |> Result.partition
@@ -390,8 +390,6 @@ module Processing =
     
     match command with
     | BanCommand context ->
-      let! config = Config.get
-
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
       |> queueIgnore
       
@@ -425,8 +423,6 @@ module Processing =
       return Some <| BanMessage(context.From, message, errors)
 
     | BanOnReplyCommand context ->
-      let! config = Config.get
-
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
       |> Job.Ignore
       |> queue
@@ -478,8 +474,6 @@ module Processing =
       return Some <| BanOnReplyMessage(context.From, message, errors)
 
     | UnbanCommand context ->
-      let! config = Config.get
-
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
       |> Job.Ignore
       |> queue
@@ -516,13 +510,13 @@ module Processing =
       return None
   }
   
-  let parseAndExecuteTextMessage settings message: Job<CommandMessage option> =
+  let parseAndExecuteTextMessage settings config message: Job<CommandMessage option> =
     parseTextMessage message
-    |> executeCommand settings
+    |> executeCommand config settings
   
-  let parseAndExecuteReplyMessage settings message: Job<CommandMessage option> =
+  let parseAndExecuteReplyMessage settings config message: Job<CommandMessage option> =
     parseReplyMessage message
-    |> executeCommand settings
+    |> executeCommand config settings
       
   let processAdminCommand (botSettings: BotDefaultSettings) (config: BotConfig) fileId: Job<unit> = 
     job {
