@@ -1,9 +1,7 @@
 ﻿namespace Grinder
 
 open Hopac
-open System
 open Hopac.Infixes
-open Funogram.Types
 
 [<RequireQualifiedAccess>]
 module UserStream =

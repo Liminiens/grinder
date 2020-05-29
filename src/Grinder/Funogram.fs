@@ -159,7 +159,7 @@ module ApiExt =
           return Error <| e.ToString()
 
       | Error e ->
-          return Error <| sprintf "Failed to download file. Description: %s" e.Description
+        return Error <| sprintf "Failed to download file. Description: %s" e.Description
     }
     |> retry 5
 

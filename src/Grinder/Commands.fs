@@ -394,17 +394,17 @@ module Processing =
       |> queueIgnore
       
       let requests = [|
-        for user in context.Usernames do
-          if userCanBeBanned user then
+        for username in context.Usernames do
+          if userCanBeBanned username then
             for chat in botSettings.ChatsToMonitor.Set do
               yield 
-                ApiExt.banUserByUsername config chat user context.Until.Value
+                ApiExt.banUserByUsername config chat username context.Until.Value
                 |> Job.map (fun result ->
                   Result.mapError ApiError result
                 )
           else
             yield 
-              sprintf "Cannot ban admin @%s" user
+              sprintf "Cannot ban admin @%s" username
               |> createCommandError AdminBanNotAllowedError
               |> Job.result
       |]
@@ -431,11 +431,21 @@ module Processing =
       |> Job.Ignore
       |> queue
       
+      do
+        let username = 
+          match context.Username with
+          | Some username -> username
+          | None -> null
+        
+        DataAccess.User(UserId = context.UserId, Username = username)
+        |> UserStream.pushUser
+        |> queue
+
       let! username = job {
         match context.Username with
         | Some username ->
-          do! Datastore.upsertUsers [DataAccess.User(UserId = context.UserId, Username = username)]
           return username
+
         | None ->
           let! username = Datastore.getUsernameByUserId context.UserId
           return 
@@ -479,16 +489,16 @@ module Processing =
       |> queue
       
       let requests = [|
-        for user in context.Usernames do
+        for username in context.Usernames do
           for chat in botSettings.ChatsToMonitor.Set do
             yield 
-              ApiExt.unbanUserByUsername config chat user
+              ApiExt.unbanUserByUsername config chat username
               |> Job.map (fun result ->
                 Result.mapError ApiError result
               )
           
             yield 
-              ApiExt.unrestrictUserByUsername config chat user
+              ApiExt.unrestrictUserByUsername config chat username
               |> Job.map (fun result ->
                 Result.mapError ApiError result
               )
@@ -545,8 +555,9 @@ module Processing =
     |> Seq.filter ^ fun u -> Option.isSome u.Username
     |> Seq.map (fun u ->
       DataAccess.User(UserId = u.Id, Username = Option.get u.Username)
+      |> UserStream.pushUser
     )
-    |> Datastore.upsertUsers
+    |> Job.conIgnore
   
   let formatMessage: CommandMessage -> string =
     let concatErrors (errors: CommandError seq) =
