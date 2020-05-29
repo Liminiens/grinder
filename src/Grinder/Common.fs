@@ -1,7 +1,5 @@
 namespace Grinder
     
-open Funogram.Types
-
 [<RequireQualifiedAccess>]
 module JsonNet =
   open System.IO
