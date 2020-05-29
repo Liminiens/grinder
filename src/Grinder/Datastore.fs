@@ -1,55 +1,57 @@
 namespace Grinder
 
-open FSharp.Control.Tasks.V2
+open Hopac
 open Microsoft.EntityFrameworkCore
 open Grinder.DataAccess
     
 type FindUserIdByUsernameResult =
-    | UserIdNotFound
-    | UserIdFound of int64
+  | UserIdNotFound
+  | UserIdFound of int64
         
 type FindUsernameByUserIdResult =
-    | UsernameNotFound
-    | UsernameFound of string
+  | UsernameNotFound
+  | UsernameFound of string
 
 [<RequireQualifiedAccess>]
 module Datastore =
-    let upsertUsers (users: User seq) =
-        task {
-            for chunk in Seq.chunkBySize 500 users do
-                use context = new GrinderContext()
-                do! context.Users.AddOrUpdateUsers(chunk)
-                do! context.SaveChangesAsync() |> Task.Ignore
-        }
-        |> Async.AwaitTask
-    
-    let findUserIdByUsername (username: string) =
-        task {
-            use context = new GrinderContext()
-            let! user =
-                context.Users
-                    .FirstOrDefaultAsync(fun u -> u.Username = username.TrimStart('@'))
-            return user
-                   |> Option.ofObj
-                   |> Option.fold (fun _ u -> UserIdFound u.UserId) UserIdNotFound
-        }
-        |> Async.AwaitTask
+  let upsertUsers (users: User seq) =
+    job {
+      for chunk in Seq.chunkBySize 500 users do
+        use context = new GrinderContext()
+        do! Job.fromUnitTask (fun () -> context.Users.AddOrUpdateUsers(chunk))
+        do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
+    }
+  
+  let findUserIdByUsername (username: string) =
+    job {
+      use context = new GrinderContext()
+      let! user =
+        context.Users
+          .FirstOrDefaultAsync(fun u -> u.Username = username.TrimStart('@'))
+      return 
+        user
+        |> Option.ofObj
+        |> Option.fold (fun _ u -> UserIdFound u.UserId) UserIdNotFound
+    }
 
-    let findUsernameByUserId userId =
-        task {
-            use context = new GrinderContext()
-            let! user =
-                context.Users
-                    .FirstOrDefaultAsync(fun u -> u.UserId = userId)
-            
-            return user
-                   |> Option.ofObj
-                   |> Option.fold (fun _ u -> UsernameFound u.Username) UsernameNotFound
-        }
-        |> Async.AwaitTask
-        
-open Grinder.Types
+  let findUsernameByUserId userId =
+    job {
+      use context = new GrinderContext()
+      let! user =
+        context.Users
+          .FirstOrDefaultAsync(fun u -> u.UserId = userId)
+      
+      return 
+        user
+        |> Option.ofObj
+        |> Option.fold (fun _ u -> UsernameFound u.Username) UsernameNotFound
+    }
 
-type IDataAccessApi =
-    abstract member GetUsernameByUserId: TelegramUserId -> Async<UserUsername option>
-    abstract member UpsertUsers: User seq -> Async<unit>   
+  let getUsernameByUserId userId = 
+    job {
+      match! findUsernameByUserId userId with
+      | UsernameFound username ->
+          return Some (sprintf "@%s" username)
+      | UsernameNotFound ->
+          return None
+    }

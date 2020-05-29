@@ -146,7 +146,7 @@ let ``prepareReplyMessage returns Some when reply is to message``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Contains(replyToUser, replyMessage.ReplyToUser)
+        Assert.Contains(replyToUser, replyMessage.ReplyToUsers)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -173,7 +173,7 @@ let ``prepareReplyMessage returns Some when someone added chat member``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Same(replyMessage.ReplyToUser, Seq.singleton newUser)
+        Assert.Same(replyMessage.ReplyToUsers, Seq.singleton newUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -198,7 +198,7 @@ let ``prepareReplyMessage returns Some when new chat member``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Contains(newUser, replyMessage.ReplyToUser)
+        Assert.Contains(newUser, replyMessage.ReplyToUsers)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -223,7 +223,7 @@ let ``prepareReplyMessage returns Some when message is from someone``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Contains(newUser, replyMessage.ReplyToUser)
+        Assert.Contains(newUser, replyMessage.ReplyToUsers)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
