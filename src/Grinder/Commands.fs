@@ -528,11 +528,17 @@ module Processing =
     job {
       match! ApiExt.prepareAndDownloadFile config fileId with
       | Ok stream ->
-        let users = JsonNet.deserializeFromStream<DataAccess.User[]>(stream)
-        do! Datastore.upsertUsers users
-        return!
-          ApiExt.sendMessage botSettings.ChannelId config "Updated user database"
-          |> Job.Ignore
+        try
+          let users = JsonNet.deserializeFromStream<DataAccess.User[]>(stream)
+          do! Datastore.upsertUsers users
+          return!
+            ApiExt.sendMessage botSettings.ChannelId config "Updated user database"
+            |> Job.Ignore
+
+        with e ->
+          return!
+            ApiExt.sendMessage botSettings.ChannelId config (e.ToString())
+            |> Job.Ignore
 
       | Error e ->
         return!
