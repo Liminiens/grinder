@@ -27,6 +27,7 @@ type ReplyMessage = { Message: Message; ReplyToMessage: Message }
 
 type UpdateType =
   | IgnoreMessage
+  | SaveUserMessage of DataAccess.User
   | NewReplyMessage of ReplyMessage
   | NewUsersAddedToChat of User list
   | NewMessage of Message
@@ -68,4 +69,14 @@ module UpdateType =
             | None ->
               NewMessage message
           else
-            IgnoreMessage
+            match message.From with
+            | Some user ->
+              let username =
+                match user.Username with
+                | Some username -> username
+                | None -> null
+              let user = DataAccess.User(UserId = user.Id, Username = username)
+              SaveUserMessage user
+
+            | None ->
+              IgnoreMessage

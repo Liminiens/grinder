@@ -125,6 +125,10 @@ module Program =
               | None -> ()
             | CommandNotAllowed -> ()
           | None -> ()
+
+        | SaveUserMessage user ->
+          do! UserStream.pushUser user
+
         | IgnoreMessage -> ()
       | None -> ()
     } |> queue
