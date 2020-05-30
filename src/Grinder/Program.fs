@@ -143,6 +143,8 @@ module Program =
   let main _ =
     GrinderContext.MigrateUp()
     
+    UserStream.setConsumer Datastore.upsertUsers
+
     printfn "Starting bot"
     job {
       let onUpdate context =

@@ -1,12 +1,16 @@
 ﻿namespace Grinder
 
+open FSharp.Core
 open Hopac
 open Hopac.Infixes
 
 [<RequireQualifiedAccess>]
 module UserStream =
   let private src = Stream.Src.create<DataAccess.User>()
-  
+  let private consumer = IVar<seq<DataAccess.User> -> Job<unit>>()
+
+  let setConsumer = IVar.fill consumer >> run
+
   let push user =
     Stream.Src.value src user
 
@@ -19,5 +23,9 @@ module UserStream =
       >>=. Stream.toSeq group
     )
     |> Stream.consumeJob (fun users ->
-      Datastore.upsertUsers users
+      if IVar.Now.isFull consumer then
+        IVar.read consumer
+        |> Job.bind (fun c -> c users)
+      else
+        Job.unit()
     )
