@@ -9,9 +9,14 @@ open Funogram.Telegram.Types
 module Parser =
   open FParsec
 
-  type Usernames = Usernames of string array
-  
   type ParserError = string
+
+  let str s = pstring s
+  
+  let pbotUsername botUsername : Parser<string, unit> =
+    spaces >>. (str botUsername) .>> spaces
+
+  type Usernames = Usernames of string array
   
   type TimeFraction =
     | Minutes of uint32
@@ -21,12 +26,12 @@ module Parser =
   type BanDuration =
     | Forever
     | Timed of DateTime
-
+  
     member this.Value =
       match this with
       | Forever ->
         DateTime.UtcNow.AddMonths(13)
-
+  
       | Timed date ->
         date
             
@@ -45,7 +50,7 @@ module Parser =
     member __.Add(fraction) =
       if not <| __.IsSet() then
         value <- DateTime.UtcNow
-
+  
       match fraction with
       | Minutes mins ->
         value <- value.AddMinutes(float mins)
@@ -53,99 +58,120 @@ module Parser =
         value <- value.AddDays(float days)
       | Months months ->
         value <- value.AddMonths(int32 months)
-              
-  type CommandAction =
-    | Ban of BanDuration
-    | Unban
 
-  type Command = 
-    | BotUsernameCommand of Usernames * CommandAction
-    | BotTextBanCommand
+  type BotUsernameCommandAction =
+    | UsernameBan of BanDuration
+    | UsernameUnban
+  
+  type BotUsernameCommand = Usernames * BotUsernameCommandAction
 
-  let str s = pstring s
-      
-  let pminutes: Parser<uint32, unit> =
-    (puint32 .>> spaces) .>> (regex "min(s|utes)?")
-    |>> (fun v -> if v < 5u then 6u else v)
-      
-  let pdays: Parser<uint32, unit> =
-    (puint32 .>> spaces) .>> (regex "day(s)?")
-      
-  let pmonths: Parser<uint32, unit> =
-    (puint32 .>> spaces) .>> (regex "month(s)?")
-      
-  let pusername: Parser<string, unit> =
-    let validate char =
-      (not <| Char.IsWhiteSpace(char)) && char <> '@'
-    pipe2 (str "@") (manySatisfy validate) (+)
+  type BotUsernameCommandParsingResult =
+    | BotUsernameCommandResult of BotUsernameCommand
+    | InvalidBotUsernameCommand of ParserError
 
-  let pbotUsername botUsername : Parser<string, unit> =
-    spaces >>. (str botUsername) .>> spaces
+  type BotReplyCommand =
+    | TextBan
+
+  type BotReplyCommandParsingResult =
+    | BotReplyCommandResult of BotReplyCommand
+    | InvalidBotReplyCommand of ParserError
+
+  [<RequireQualifiedAccess>]
+  module UsernameCommands =
+    let pminutes: Parser<uint32, unit> =
+      (puint32 .>> spaces) .>> (regex "min(s|utes)?")
+      |>> (fun v -> if v < 5u then 6u else v)
+        
+    let pdays: Parser<uint32, unit> =
+      (puint32 .>> spaces) .>> (regex "day(s)?")
+        
+    let pmonths: Parser<uint32, unit> =
+      (puint32 .>> spaces) .>> (regex "month(s)?")
+        
+    let pusername: Parser<string, unit> =
+      let validate char =
+        (not <| Char.IsWhiteSpace(char)) && char <> '@'
+      pipe2 (str "@") (manySatisfy validate) (+)
     
-  let pBanText: Parser<Command, unit> =
-    spaces >>. (str "/ban") >>% BotTextBanCommand
+    let many1Usernames: Parser<string list, unit> =
+      many1 (pusername .>> spaces)
+    
+    let sumTimedFractions (fractions: TimeFraction seq) =
+      let summator = TimeFractionSummator()
+      for fraction in fractions do
+        summator.Add(fraction)
+      Timed <| summator.GetValue()
+        
+    let pdistinctTimeFractions: Parser<BanDuration, unit> =
+      [|
+        pminutes |>> Minutes .>> spaces;
+        pmonths |>> Months .>> spaces;
+        pdays |>> Days .>> spaces
+      |]
+      |> Seq.map attempt
+      |> choice
+      |> many
+      |>> Seq.distinct
+      |>> sumTimedFractions
+    
+    let pforeverBan: Parser<BanDuration, unit> =
+      [|
+        spaces >>. eof >>% Forever;
+        spaces >>. str "forever" >>% Forever;
+      |]
+      |> Seq.map attempt
+      |> choice
+    
+    let pban: Parser<BanDuration, unit> =
+      str "ban" .>> spaces >>. (pforeverBan <|> pdistinctTimeFractions)
+    
+    let punban: Parser<BotUsernameCommandAction, unit> =
+      str "unban" .>> spaces >>% UsernameUnban
+        
+    let pcommandAction: Parser<BotUsernameCommandAction, unit> =
+      (pban |>> UsernameBan) <|> punban
+    
+    let parseCommand botUsername =
+      pbotUsername botUsername >>.
+      pipe2 many1Usernames pcommandAction (fun usernames command -> 
+        BotUsernameCommand(Usernames(Array.ofList usernames), command)
+      )
+        
+    let runCommandParser botUsername str: ParserResult<BotUsernameCommand, unit> =
+      run (parseCommand botUsername) str
+    
+    let parse botUsername text =
+      match runCommandParser botUsername text with
+      | Success(result, _, _)   ->
+        BotUsernameCommandResult result
+    
+      | Failure(errorMsg, _, _) ->
+        InvalidBotUsernameCommand errorMsg
 
-  let many1Usernames: Parser<string list, unit> =
-    many1 (pusername .>> spaces)
-  
-  let sumTimedFractions (fractions: TimeFraction seq) =
-    let summator = TimeFractionSummator()
-    for fraction in fractions do
-      summator.Add(fraction)
-    Timed <| summator.GetValue()
-      
-  let pdistinctTimeFractions: Parser<BanDuration, unit> =
-    [|
-      pminutes |>> Minutes .>> spaces;
-      pmonths |>> Months .>> spaces;
-      pdays |>> Days .>> spaces
-    |]
-    |> Seq.map attempt
-    |> choice
-    |> many
-    |>> Seq.distinct
-    |>> sumTimedFractions
-  
-  let pforeverBan: Parser<BanDuration, unit> =
-    [|
-      spaces >>. eof >>% Forever;
-      spaces >>. str "forever" >>% Forever;
-    |]
-    |> Seq.map attempt
-    |> choice
-  
-  let pban: Parser<BanDuration, unit> =
-    str "ban" .>> spaces >>. (pforeverBan <|> pdistinctTimeFractions)
+  [<RequireQualifiedAccess>]
+  module ReplyCommands =
+    let pBanText: Parser<BotReplyCommand, unit> =
+      str "/ban" >>% TextBan
 
-  let punban: Parser<CommandAction, unit> =
-    str "unban" .>> spaces >>% Unban
-      
-  let pcommandAction: Parser<CommandAction, unit> =
-    (pban |>> Ban) <|> punban
+    let pBotUsernameBan (botUsername: string): Parser<BotReplyCommand, unit> =
+      pbotUsername botUsername .>> spaces >>.
+      str "ban" >>% TextBan
 
-  let parseCommand botUsername =
-    pbotUsername botUsername >>.
-    pipe2 many1Usernames pcommandAction (fun usernames command -> 
-      BotUsernameCommand(Usernames(Array.ofList usernames), command)
-    )
-      
-  let runCommandParser botUsername str: ParserResult<Command, unit> =
-    run (parseCommand botUsername) str
-  
-  type CommandParsingResult =
-    | BotCommand of Command
-    | InvalidCommand of ParserError
-  
-  let parse botUsername text =
-    match runCommandParser botUsername text with
-    | Success(result, _, _)   ->
-      BotCommand result
+    let parseCommand botUsername =
+      (pBotUsernameBan botUsername) <|> pBanText
+        
+    let runCommandParser botUsername str: ParserResult<BotReplyCommand, unit> =
+      run (parseCommand botUsername) str
+    
+    let parse botUsername text =
+      match runCommandParser botUsername text with
+      | Success(result, _, _)   ->
+        BotReplyCommandResult result
+    
+      | Failure(errorMsg, _, _) ->
+        InvalidBotReplyCommand errorMsg
 
-    | Failure(errorMsg, _, _) ->
-      InvalidCommand errorMsg
-            
 module Processing =
-  open Funogram
   open Funogram.Types
   open Grinder.FunogramExt
   open Parser
@@ -248,14 +274,6 @@ module Processing =
     UserId: int64
     Username: string option
   }
-  
-  type TextBanCommandContext = {
-    From: string
-    MessageId: int64
-    ChatId: int64
-    Username: string option
-    Until: BanDuration
-  }
 
   type BanCommandContext = {
     From: string
@@ -273,7 +291,7 @@ module Processing =
   }
   
   type Command =
-    | TextBanCommand of TextBanCommandContext
+    | TextBanCommand of ActionOnReplyCommandContext
     | BanCommand of BanCommandContext
     | BanOnReplyCommand of ActionOnReplyCommandContext
     | UnbanCommand of UnbanCommandContext
@@ -344,31 +362,26 @@ module Processing =
     | UnbanMessage of string * UnbanMessage * CommandError array
       
   let parseReplyMessage (context: ReplyToMessageContext): Command =
-    let messageText = context.MessageText
-    let botMentioned = messageText.StartsWith(context.BotUsername)
-    
-    // bot nickname and command are delimited by space
-    let hasUnbanWord = messageText.Contains(" unban")
-    let hasBanWord = messageText.Contains(" ban") 
-    
-    let context = {
-      ActionOnReplyCommandContext.From = context.FromUsername
-      MessageId = context.Message.MessageId
-      ReplyToMessageId = context.ReplyToMessage.MessageId
-      ChatId = context.Message.Chat.Id
-      UserId = context.ReplyToUser.Id
-      Username = 
-        context.ReplyToUser.Username 
-        |> Option.map(fun u -> sprintf "@%s" u)
-    }
-            
-    match (botMentioned, hasBanWord, hasUnbanWord) with
-    | (true, true, false) -> BanOnReplyCommand context
-    | _ -> DoNothingCommand
+    match ReplyCommands.parse context.BotUsername context.MessageText with
+    | BotReplyCommandResult TextBan ->
+      let context = {
+        ActionOnReplyCommandContext.From = context.FromUsername
+        MessageId = context.Message.MessageId
+        ReplyToMessageId = context.ReplyToMessage.MessageId
+        ChatId = context.Message.Chat.Id
+        UserId = context.ReplyToUser.Id
+        Username = 
+          context.ReplyToUser.Username 
+          |> Option.map(fun u -> sprintf "@%s" u)
+      }
+      BanOnReplyCommand context
+
+    | InvalidBotReplyCommand _ -> 
+      DoNothingCommand
                           
   let parseTextMessage (context: TextMessageContext): Command =
-    match Parser.parse context.BotUsername context.MessageText with
-    | BotCommand(BotUsernameCommand((Usernames usernames), Ban(duration))) ->
+    match Parser.UsernameCommands.parse context.BotUsername context.MessageText with
+    | BotUsernameCommandResult((Usernames usernames), UsernameBan(duration)) ->
       let context = {
         From = context.FromUsername
         MessageId = context.Message.MessageId
@@ -378,7 +391,7 @@ module Processing =
       }
       BanCommand context
 
-    | BotCommand(BotUsernameCommand((Usernames usernames), Unban)) ->
+    | BotUsernameCommandResult((Usernames usernames), UsernameUnban) ->
       let context = {
         From = context.FromUsername
         MessageId = context.Message.MessageId
@@ -387,27 +400,7 @@ module Processing =
       }
       UnbanCommand context
 
-    | BotCommand BotTextBanCommand ->
-      match context.Message.ReplyToMessage with
-      | Some reply ->
-        match reply.From with
-        | Some user ->
-          let context = {
-            From = context.FromUsername
-            MessageId = context.Message.MessageId
-            ChatId = context.Message.Chat.Id
-            Username = user.Username
-            Until = BanDuration.Forever
-          }
-          TextBanCommand context
-
-        | None ->
-          DoNothingCommand
-
-      | None ->
-        DoNothingCommand
-
-    | InvalidCommand _ ->
+    | InvalidBotUsernameCommand _ ->
       DoNothingCommand
               
   let executeCommand config (botSettings: BotDefaultSettings) command: Job<CommandMessage option> = job {
@@ -485,6 +478,7 @@ module Processing =
       }
       
       return Some <| BanOnReplyMessage(context.From, message, errors)
+
     | BanCommand context ->
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
       |> queueIgnore
@@ -662,9 +656,13 @@ module Processing =
   
   let processNewUsersAddedToChat (users: User seq): Job<unit> =
     users
-    |> Seq.filter ^ fun u -> Option.isSome u.Username
     |> Seq.map (fun u ->
-      DataAccess.User(UserId = u.Id, Username = Option.get u.Username)
+      let username =
+        match u.Username with
+        | Some username -> username
+        | None -> null
+
+      DataAccess.User(UserId = u.Id, Username = username)
       |> UserStream.push
     )
     |> Job.conIgnore
