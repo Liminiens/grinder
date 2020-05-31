@@ -11,8 +11,7 @@ module UserStream =
 
   let setConsumer = IVar.fill consumer >> run
 
-  let push user =
-    Stream.Src.value src user
+  let push user = Stream.Src.value src user
 
   do
     Stream.Src.tap src
