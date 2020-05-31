@@ -11,7 +11,7 @@ namespace Grinder.DataAccess
         {
             foreach (var data in records)
             {
-                var fromDatabase = await dbSet.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id || x.UserId == data.UserId);
+                var fromDatabase = await dbSet.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == data.UserId);
                 if (fromDatabase != null)
                 {
                     if (fromDatabase.Username != data.Username)

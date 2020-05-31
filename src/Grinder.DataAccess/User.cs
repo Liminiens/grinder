@@ -6,9 +6,6 @@ namespace Grinder.DataAccess
 {
     public class User
     {
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
-
         [Required]
         public long UserId { get; set; }
 
