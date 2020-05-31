@@ -24,8 +24,7 @@ module UserStream =
     )
     |> Stream.consumeJob (fun users ->
       if IVar.Now.isFull consumer then
-        IVar.read consumer
-        |> Job.bind (fun c -> c users)
+        (IVar.Now.get consumer) (users :> seq<_>)
       else
         Job.unit()
     )
