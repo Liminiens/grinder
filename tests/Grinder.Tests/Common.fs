@@ -5,36 +5,36 @@ open Xunit
 
 [<RequireQualifiedAccess>]    
 module Assert =
-    let Fail() = Assert.True(false)
-    
-    let FailWithMessage text = Assert.True(false, text)
-    
-    let Success() = Assert.True(true)
+  let Fail() = Assert.True(false)
+  
+  let FailWithMessage text = Assert.True(false, text)
+  
+  let Success() = Assert.True(true)
     
 [<AutoOpen>]
 module Funogram =
-    let defaultUser =
-         { Id = -1L; IsBot = false; FirstName = null; LastName = None; Username = None; LanguageCode = None }
+  let defaultUser =
+     { Id = -1L; IsBot = false; FirstName = null; LastName = None; Username = None; LanguageCode = None }
 
 [<AutoOpen>]         
 module App =
-    open System
-    open Grinder.Types
-    open Grinder.Commands.Processing
-    
-    let defaultTextMessage =
-        { BotUsername = String.Empty
-          Message = defaultMessage
-          MessageText = String.Empty
-          ReplyToUser = defaultUser
-          ReplyToMessage = defaultMessage
-          FromUsername = String.Empty
-          ChatUsername = String.Empty }
-        
-    let createSettings chats users = {
-        Token = String.Empty
-        ChatsToMonitor = ChatsToMonitor chats
-        AllowedUsers = AllowedUsers users
-        ChannelId = 123L
-        AdminUserId = 123L
-    }
+  open System
+  open Grinder.Types
+  open Grinder.Commands.Processing
+  
+  let defaultTextMessage =
+    { BotUsername = String.Empty
+      Message = defaultMessage
+      MessageText = String.Empty
+      ReplyToUser = defaultUser
+      ReplyToMessage = defaultMessage
+      FromUsername = String.Empty
+      ChatUsername = String.Empty }
+      
+  let createSettings chats users = {
+    Token = String.Empty
+    ChatsToMonitor = ChatsToMonitor chats
+    AllowedUsers = AllowedUsers users
+    ChannelId = 123L
+    AdminUserId = 123L
+  }
