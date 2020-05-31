@@ -28,3 +28,12 @@ let ``parseReplyMessage properly parses the ban command``() =
   match result with
   | BanOnReplyCommand commandContext -> Assert.Equal(replyToUser.Id, commandContext.UserId)
   | _ -> Assert.Fail()
+
+[<Fact>]
+let ``parseReplyMessage properly parses the /ban command``() =
+  let inputMessage = "/ban"
+  let context = { replyContext with MessageText = inputMessage }
+  let result = parseReplyMessage context
+  match result with
+  | BanOnReplyCommand commandContext -> Assert.Equal(replyToUser.Id, commandContext.UserId)
+  | _ -> Assert.Fail()
