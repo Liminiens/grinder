@@ -146,21 +146,19 @@ module Program =
     UserStream.setConsumer Datastore.upsertUsers
 
     printfn "Starting bot"
-    job {
-      let onUpdate context =
-        Mailbox.send updateBox context
-        |> queue
+    let onUpdate context =
+      Mailbox.send updateBox context
+      |> queue
 
-      do! startBot botConfiguration onUpdate None
-        
-      printfn "Bot started"
+    let bot = startBot botConfiguration onUpdate None |> Job.fromAsync |> Job.start
+      
+    printfn "Bot started"
 
-      do! 
-        Mailbox.take updateBox
-        |> Job.map (fun update -> processUpdate update)
-        |> Job.forever
-    } 
-    |> queue
-    
+    Mailbox.take updateBox
+    |> Job.map processUpdate
+    |> Job.forever
+    |> start
+
+    System.Console.ReadKey() |> ignore
     printfn "Bot exited"
     0 // return an integer exit code

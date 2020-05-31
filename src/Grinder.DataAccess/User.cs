@@ -12,4 +12,16 @@ namespace Grinder.DataAccess
         [Required]
         public string Username { get; set; }
     }
+
+    public class Message
+    {
+        [Required]
+        public long MessageId { get; set; }
+
+        [Required]
+        public long ChatId { get; set; }
+    
+        [Required]
+        public long UserId { get; set; }
+    }
 }

@@ -21,6 +21,10 @@ namespace Grinder.DataAccess
             modelBuilder.Entity<User>()
                 .HasIndex(b => new {b.Username, b.UserId})
                 .IsUnique();
+            
+            modelBuilder.Entity<Message>()
+                .HasIndex(b => b.UserId)
+                .IsUnique();
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
