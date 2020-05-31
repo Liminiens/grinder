@@ -51,7 +51,14 @@ module Datastore =
     job {
       match! findUsernameByUserId userId with
       | UsernameFound username ->
-          return Some (sprintf "@%s" username)
+        return Some (sprintf "@%s" username)
       | UsernameNotFound ->
-          return None
+        return None
+    }
+
+  let insertMessages (messages: seq<_>) = 
+    job {
+      use context = new GrinderContext()
+      do! Job.fromUnitTask (fun () -> context.Set<Message>().AddRangeAsync(messages))
+      do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
     }

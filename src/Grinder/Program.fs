@@ -132,8 +132,12 @@ module Program =
           | None ->
             do! processCommonTextMessage reply.Message
 
-        | CodeTextMessage user ->
-          do! UserStream.push user
+        | UsualMessage(messageId, chatId, userId, username, chatUsername) ->
+          if authorizeChat settings chatUsername then
+            let user = DataAccess.User(UserId = userId, Username = username)
+            let message = DataAccess.Message(MessageId = messageId, ChatId = chatId, UserId = userId)
+            do! UserStream.push user
+            do! MessageStream.push message
 
         | IgnoreMessage -> ()
       | None -> ()
@@ -144,6 +148,7 @@ module Program =
     GrinderContext.MigrateUp()
     
     UserStream.setConsumer Datastore.upsertUsers
+    MessageStream.setConsumer Datastore.insertMessages
 
     printfn "Starting bot"
     let onUpdate context =

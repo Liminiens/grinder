@@ -434,7 +434,14 @@ module Processing =
 
     | InvalidBotUsernameCommand _ ->
       DoNothingCommand
-              
+       
+  let authorizeChat (settings: BotDefaultSettings) chatUsername =
+    chatUsername
+    |> Option.map (fun username ->
+      settings.ChatsToMonitor.Set.Contains(username)
+    )
+    |> Option.defaultValue false
+
   let executeCommand config (botSettings: BotDefaultSettings) command: Job<CommandMessage option> = job {
     let getErrors results =
       results
@@ -659,8 +666,10 @@ module Processing =
           | Some username -> username
           | None -> null
 
-        let user = DataAccess.User(UserId = user.Id, Username = username)
-        do! UserStream.push user
+        let userToUpdate = DataAccess.User(UserId = user.Id, Username = username)
+        let message = DataAccess.Message(MessageId = message.MessageId, ChatId = message.Chat.Id, UserId = user.Id)
+        do! UserStream.push userToUpdate
+        do! MessageStream.push message
       | None -> ()
     }
 

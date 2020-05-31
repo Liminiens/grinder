@@ -27,7 +27,7 @@ type ReplyMessage = { Message: Message; ReplyToMessage: Message }
 
 type UpdateType =
   | IgnoreMessage
-  | CodeTextMessage of DataAccess.User
+  | UsualMessage of messageId: int64 * chatId: int64 * userId: int64 * username: string * chatUsername: string option
   | NewReplyMessage of ReplyMessage
   | NewUsersAddedToChat of User list
   | NewMessage of Message
@@ -75,8 +75,7 @@ module UpdateType =
                 match user.Username with
                 | Some username -> username
                 | None -> null
-              let user = DataAccess.User(UserId = user.Id, Username = username)
-              CodeTextMessage user
+              UsualMessage(message.MessageId, message.Chat.Id, user.Id, username, message.Chat.Username)
 
             | None ->
               IgnoreMessage
