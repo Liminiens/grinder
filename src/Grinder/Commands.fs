@@ -255,16 +255,48 @@ module Processing =
       |> Option.map ^ fun chatUsername ->
         (chatUsername, botUsername, message, username, text)
     |> Option.bind ^ fun (chatUsername, botUsername, message, username, text) ->
-      reply.ReplyToMessage.From
-      |> Option.map (fun user ->
-        { BotUsername = (sprintf "@%s" botUsername)
-          Message = message
-          MessageText = text
-          ReplyToUser = user
-          ReplyToMessage = reply.ReplyToMessage
-          FromUsername = username
-          ChatUsername = (sprintf "@%s" chatUsername) }
-      )
+      let singleChatMember =
+        reply.ReplyToMessage.NewChatMembers
+        |> Option.bind (fun members ->
+          match members with
+          | m when Seq.length m = 1 ->
+            Seq.head m |> Some
+          | _ -> None
+        )
+
+      if reply.ReplyToMessage.From = reply.Message.From then
+        //user joined
+        singleChatMember
+        |> Option.map ^ fun user ->
+           { BotUsername = (sprintf "@%s" botUsername)
+             Message = message
+             MessageText = text
+             ReplyToUser = user
+             ReplyToMessage = reply.ReplyToMessage
+             FromUsername = username
+             ChatUsername = (sprintf "@%s" chatUsername) }
+      else
+        match reply.ReplyToMessage.From with
+        | Some from -> 
+          { BotUsername = (sprintf "@%s" botUsername)
+            Message = message
+            MessageText = text
+            ReplyToUser = from
+            ReplyToMessage = reply.ReplyToMessage
+            FromUsername = username
+            ChatUsername = (sprintf "@%s" chatUsername) }
+          |> Some
+
+        | None ->
+          singleChatMember
+          |> Option.map ^ fun user ->
+            { BotUsername = (sprintf "@%s" botUsername)
+              Message = message
+              MessageText = text
+              ReplyToUser = user
+              ReplyToMessage = reply.ReplyToMessage
+              FromUsername = username
+              ChatUsername = (sprintf "@%s" chatUsername) }
                     
   type ActionOnReplyCommandContext = {
     From: string

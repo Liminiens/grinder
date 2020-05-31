@@ -172,7 +172,7 @@ let ``prepareReplyMessage returns Some when someone added chat member``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Same(replyMessage.ReplyToUser, Seq.singleton newUser)
+        Assert.Equal(newUser, replyMessage.ReplyToUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
@@ -197,7 +197,7 @@ let ``prepareReplyMessage returns Some when new chat member``() =
         Assert.Equal(replyMessage.ChatUsername, "@chat")
         Assert.Equal(replyMessage.FromUsername, "user")
         Assert.Equal(replyMessage.MessageText, "text")
-        Assert.Equal(newUser, replyMessage.ReplyToUser)
+        Assert.Equal(replyMessage.ReplyToUser, newUser)
         Assert.Equal(replyMessage.Message, message)
     | None ->
         Assert.Fail()
