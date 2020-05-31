@@ -670,7 +670,13 @@ module Processing =
       | Ok stream ->
         try
           let users = JsonNet.deserializeFromStream<DataAccess.User[]>(stream)
-          do! Datastore.upsertUsers users
+          
+          do!
+            users
+            |> Seq.chunkBySize 200
+            |> Seq.map Datastore.upsertUsers
+            |> Job.seqIgnore
+
           return!
             ApiExt.sendMessage botSettings.ChannelId config "Updated user database"
             |> Job.Ignore
