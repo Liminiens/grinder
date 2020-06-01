@@ -2,14 +2,16 @@
 using Grinder.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Grinder.DataAccess.Migrations
 {
     [DbContext(typeof(GrinderContext))]
-    partial class GrinderContextModelSnapshot : ModelSnapshot
+    [Migration("20200601203301_Message")]
+    partial class Message
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

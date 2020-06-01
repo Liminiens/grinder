@@ -5,26 +5,26 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Grinder.DataAccess
 {
-    public static class DbContextExtensions
+  public static class DbContextExtensions
+  {
+    public static async Task AddOrUpdateUsers(this DbSet<User> dbSet, IEnumerable<User> records)
     {
-        public static async Task AddOrUpdateUsers(this DbSet<User> dbSet, IEnumerable<User> records)
+      foreach (var data in records)
+      {
+        var fromDatabase = await dbSet.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == data.UserId);
+        if (fromDatabase != null)
         {
-            foreach (var data in records)
-            {
-                var fromDatabase = await dbSet.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == data.UserId);
-                if (fromDatabase != null)
-                {
-                    if (fromDatabase.Username != data.Username)
-                    {
-                        fromDatabase.Username = data.Username;
-                        dbSet.Attach(fromDatabase).State = EntityState.Modified;
-                    }
-                }
-                else
-                {
-                    dbSet.Attach(data).State = EntityState.Added;
-                }
-            }
+          if (fromDatabase.Username != data.Username)
+          {
+            fromDatabase.Username = data.Username;
+            dbSet.Attach(fromDatabase).State = EntityState.Modified;
+          }
         }
+        else
+        {
+          dbSet.Attach(data).State = EntityState.Added;
+        }
+      }
     }
+  }
 }
