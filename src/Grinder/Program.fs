@@ -114,6 +114,9 @@ module Program =
             | CommandNotAllowed ->
               if authorizeChat settings (Some newMessage.ChatUsername) then
                 do! processCommonTextMessage message
+              
+              ApiExt.deleteMessageWithRetry context.Config newMessage.Message.Chat.Id newMessage.Message.MessageId
+              |> queueIgnore
           | None ->
             if authorizeChat settings message.Chat.Username then
               do! processCommonTextMessage message
@@ -134,6 +137,9 @@ module Program =
             | CommandNotAllowed ->
               if authorizeChat settings reply.Message.Chat.Username then
                 do! processCommonTextMessage reply.Message
+
+              ApiExt.deleteMessageWithRetry context.Config reply.Message.Chat.Id reply.Message.MessageId
+              |> queueIgnore
           | None ->
             if authorizeChat settings reply.Message.Chat.Username then
               do! processCommonTextMessage reply.Message
