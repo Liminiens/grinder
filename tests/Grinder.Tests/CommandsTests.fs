@@ -243,7 +243,36 @@ let ``prepareReplyToMessage returns None when bot username is None``() =
     Assert.Fail()
   | None ->
     Assert.Success()
+
+[<Fact>]
+let ``authorizeChat returns true``() =
+  let settings = createSettings [|"chat"|] [|"user"|]
+  
+  let message = { defaultMessage with Chat = { defaultChat with Username = Some "chat" } }
+  
+  if authorizeChat settings message.Chat.Username then
+    Assert.Success()
+  else
+    Assert.Fail()
         
+[<Theory>]
+[<InlineData(null)>]
+[<InlineData("not")>]
+[<InlineData("")>]
+let ``authorizeChat returns false``(chatUsername: string) =
+  let username =
+    match chatUsername with
+    | null -> None
+    | u -> Some u
+  let settings = createSettings [|"chat"|] [|"user"|]
+  
+  let message = { defaultMessage with Chat = { defaultChat with Username = username } }
+  
+  if authorizeChat settings message.Chat.Username then
+    Assert.Fail()
+  else
+    Assert.Success()
+
 [<Fact>]
 let ``authorize returns CommandAllowed``() =
   let settings = createSettings [|"chat"|] [|"user"|]
