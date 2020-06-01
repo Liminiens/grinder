@@ -15,7 +15,7 @@ type AllowedUsers =
       let (AllowedUsers users) = __
       users |> Set.ofArray
 
-type BotDefaultSettings = {
+type BotSettings = {
   Token: string
   ChatsToMonitor: ChatsToMonitor
   AllowedUsers: AllowedUsers
@@ -29,13 +29,13 @@ type UpdateType =
   | IgnoreMessage
   | UsualMessage of messageId: int64 * chatId: int64 * userId: int64 * username: string * chatUsername: string option
   | NewReplyMessage of ReplyMessage
-  | NewUsersAddedToChat of User list
+  | NewUsersAddedToChat of User list * chatUsername: string option
   | NewMessage of Message
   | NewAdminUsersFileMessage of Document
 
 [<RequireQualifiedAccess>]   
 module UpdateType =
-  let fromUpdate (settings: BotDefaultSettings) (update: Update) =
+  let fromUpdate (settings: BotSettings) (update: Update) =
     update.Message
     |> Option.map ^ fun message ->
       if message.Chat.Id = settings.AdminUserId then
@@ -57,7 +57,7 @@ module UpdateType =
 
         match message.NewChatMembers with
         | Some users ->
-          NewUsersAddedToChat(List.ofSeq users)
+          NewUsersAddedToChat(List.ofSeq users, message.Chat.Username)
 
         | None ->
           if not hasCodeBlock then

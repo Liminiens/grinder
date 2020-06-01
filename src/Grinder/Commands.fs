@@ -198,7 +198,7 @@ module Processing =
     | CommandAllowed
     | CommandNotAllowed
   
-  let authorize (botSettings: BotDefaultSettings) user chat =
+  let authorize (botSettings: BotSettings) user chat =
     let isAllowedUser username =
       botSettings.AllowedUsers.Set
       |> Set.contains username
@@ -435,14 +435,12 @@ module Processing =
     | InvalidBotUsernameCommand _ ->
       DoNothingCommand
        
-  let authorizeChat (settings: BotDefaultSettings) chatUsername =
+  let authorizeChat (settings: BotSettings) chatUsername =
     chatUsername
-    |> Option.map (fun username ->
-      settings.ChatsToMonitor.Set.Contains(username)
-    )
+    |> Option.map settings.ChatsToMonitor.Set.Contains
     |> Option.defaultValue false
 
-  let executeCommand config (botSettings: BotDefaultSettings) command: Job<CommandMessage option> = job {
+  let executeCommand config (botSettings: BotSettings) command: Job<CommandMessage option> = job {
     let getErrors results =
       results
       |> Result.partition
@@ -673,7 +671,7 @@ module Processing =
       | None -> ()
     }
 
-  let processAdminCommand (botSettings: BotDefaultSettings) (config: BotConfig) fileId: Job<unit> = 
+  let processAdminCommand (botSettings: BotSettings) (config: BotConfig) fileId: Job<unit> = 
     job {
       match! ApiExt.prepareAndDownloadFile config fileId with
       | Ok stream ->

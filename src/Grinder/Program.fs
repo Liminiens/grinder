@@ -93,8 +93,9 @@ module Program =
         | NewAdminUsersFileMessage document ->
           do! processAdminCommand settings context.Config document.FileId
 
-        | NewUsersAddedToChat users ->
-          do! processNewUsersAddedToChat users
+        | NewUsersAddedToChat(users, chatUsername) ->
+          if authorizeChat settings chatUsername then
+            do! processNewUsersAddedToChat users
 
         | NewMessage message ->
           match prepareTextMessage context.Me.Username message with
@@ -108,11 +109,14 @@ module Program =
                 |> sendTextToChannel
                 |> queueIgnore
               | None ->
-                do! processCommonTextMessage message
+                if authorizeChat settings (Some newMessage.ChatUsername) then
+                  do! processCommonTextMessage message
             | CommandNotAllowed ->
-              do! processCommonTextMessage message
+              if authorizeChat settings (Some newMessage.ChatUsername) then
+                do! processCommonTextMessage message
           | None ->
-            do! processCommonTextMessage message
+            if authorizeChat settings message.Chat.Username then
+              do! processCommonTextMessage message
 
         | NewReplyMessage reply ->
           match prepareReplyToMessage context.Me.Username reply with
@@ -128,9 +132,11 @@ module Program =
               | None ->
                 do! processCommonTextMessage reply.Message
             | CommandNotAllowed ->
-              do! processCommonTextMessage reply.Message
+              if authorizeChat settings reply.Message.Chat.Username then
+                do! processCommonTextMessage reply.Message
           | None ->
-            do! processCommonTextMessage reply.Message
+            if authorizeChat settings reply.Message.Chat.Username then
+              do! processCommonTextMessage reply.Message
 
         | UsualMessage(messageId, chatId, userId, username, chatUsername) ->
           if authorizeChat settings chatUsername then
