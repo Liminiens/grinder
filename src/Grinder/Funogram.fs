@@ -28,7 +28,7 @@ let rec private retry times (call: Job<Result<'T, 'TError>>) =
 let callApiWithRetry config times request = 
   Job.fromAsync(api config request) |> retry times
 
-let callApiWithDefaultRetry config = callApiWithRetry config 5
+let callApiWithDefaultRetry config = callApiWithRetry config 2
 
 [<RequireQualifiedAccess>]
 module ApiExt =
@@ -36,14 +36,14 @@ module ApiExt =
     { ChatId: ChatId
       UserId: int64 }
     interface IRequestBase<bool> with
-        member __.MethodName = "unbanChatMember"
+      member __.MethodName = "unbanChatMember"
           
   type KickChatMemberReqExt = 
     { ChatId: ChatId
       UserId: int64
       UntilDate: int64 }
     interface IRequestBase<bool> with
-        member __.MethodName = "kickChatMember"
+      member __.MethodName = "kickChatMember"
       
   type RestrictChatMemberReqExt = 
     { ChatId: ChatId
@@ -54,7 +54,7 @@ module ApiExt =
       CanSendOtherMessages: bool option
       CanAddWebPagePreviews: bool option }
     interface IRequestBase<bool> with
-        member __.MethodName = "restrictChatMember"
+      member __.MethodName = "restrictChatMember"
   
   let restrictPermissions = 
     { ChatPermissions.CanAddWebPagePreviews = Some false
@@ -83,13 +83,13 @@ module ApiExt =
       match! Datastore.findUserIdByUsername username with
       | UserIdFound userId ->
         let! banResult =  
-            kickChatMemberByChatNameUntilExt chat userId until
-            |> callApiWithDefaultRetry context
+          kickChatMemberByChatNameUntilExt chat userId until
+          |> callApiWithDefaultRetry context
         match banResult with
         | Ok _ ->
-            return Ok ()
+          return Ok ()
         | Error e ->
-            return Error <| sprintf "Failed to ban %s in chat %s. Description: %s" username chat e.Description
+          return Error <| sprintf "Failed to ban %s in chat %s. Description: %s" username chat e.Description
       | UserIdNotFound ->
         return Error <| sprintf "Couldn't resolve username %s" username
     }
@@ -127,13 +127,13 @@ module ApiExt =
       match! Datastore.findUserIdByUsername username with
       | UserIdFound userId ->
         let! restrictResult = 
-            restrictChatMemberBase (ChatId.String chat) userId restrictPermissions None
-            |> callApiWithDefaultRetry context
+          restrictChatMemberBase (ChatId.String chat) userId restrictPermissions None
+          |> callApiWithDefaultRetry context
         match restrictResult with
         | Ok _ ->
-            return Ok ()
+          return Ok ()
         | Error e ->
-            return Error <| sprintf "Failed to unrestrict %s in chat %s. Description: %s" username chat e.Description
+          return Error <| sprintf "Failed to unrestrict %s in chat %s. Description: %s" username chat e.Description
 
       | UserIdNotFound ->
         return Error <| sprintf "Couldn't resolve username %s" username
@@ -161,7 +161,7 @@ module ApiExt =
       | Error e ->
         return Error <| sprintf "Failed to download file. Description: %s" e.Description
     }
-    |> retry 5
+    |> retry 2
 
   let deleteMessageWithRetry config chatId messageId =
     Api.deleteMessage chatId messageId
