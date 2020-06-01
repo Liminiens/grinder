@@ -6,6 +6,7 @@ namespace Grinder.DataAccess
   public class GrinderContext : DbContext
   {
     public DbSet<User> Users { get; set; }
+    public DbSet<Message> Messages { get; set; }
 
     public static void MigrateUp()
     {
@@ -23,8 +24,11 @@ namespace Grinder.DataAccess
           .IsUnique();
 
       modelBuilder.Entity<Message>()
-          .HasIndex(b => b.UserId)
+          .HasIndex(b => new { b.ChatId, b.UserId })
           .IsUnique();
+
+      modelBuilder.Entity<Message>()
+          .HasIndex(b => b.Date);
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
