@@ -1,9 +1,9 @@
 namespace Grinder
 
+open System
 open Hopac
 open Microsoft.EntityFrameworkCore
 open Grinder.DataAccess
-open System
 open System.Linq
     
 type FindUserIdByUsernameResult =
@@ -86,3 +86,21 @@ module Datastore =
           |> Array.map (fun m -> m.MessageId)
       return ids
     }
+
+  let startMessageCleanupJob() =
+    job {
+      use context = new DataAccess.GrinderContext()
+      let! toDelete =
+        Job.fromTask(fun () ->
+          context.Messages
+            .Where(fun m -> 
+              DateTimeOffset.UtcNow.Subtract(DateTimeOffset.FromUnixTimeMilliseconds(m.Date)).TotalDays > 1.
+            )
+            .ToArrayAsync()
+        )
+      context.Messages.RemoveRange(toDelete)
+      do! Job.fromTask(fun () -> context.SaveChangesAsync()) |> Job.Ignore
+      do! timeOut (TimeSpan.FromDays(1.))
+    }
+    |> Job.forever
+    |> queue

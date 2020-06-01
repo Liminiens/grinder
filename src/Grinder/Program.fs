@@ -161,6 +161,7 @@ module Program =
     
     UserStream.setConsumer Datastore.upsertUsers
     MessageStream.setConsumer Datastore.insertMessages
+    Datastore.startMessageCleanupJob()
 
     printfn "Starting bot"
     let onUpdate context =
