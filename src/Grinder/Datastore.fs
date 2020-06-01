@@ -3,6 +3,8 @@ namespace Grinder
 open Hopac
 open Microsoft.EntityFrameworkCore
 open Grinder.DataAccess
+open System
+open System.Linq
     
 type FindUserIdByUsernameResult =
   | UserIdNotFound
@@ -61,4 +63,26 @@ module Datastore =
       use context = new GrinderContext()
       do! Job.fromUnitTask (fun () -> context.Set<Message>().AddRangeAsync(messages))
       do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
+    }
+
+  let getLastThreeMessages chatId userId =
+    job {
+      use context = new GrinderContext()
+      let! idsFromDb = 
+        Job.fromTask (fun () ->
+          context.Messages
+            .Where(fun m -> m.ChatId = chatId && m.UserId = userId)
+            .OrderByDescending(fun m -> m.Date)
+            .ToArrayAsync()
+        )
+      let ids =
+        match idsFromDb with
+        | ids when ids.Length > 3 ->
+          Seq.take 3 ids 
+          |> Seq.map (fun m -> m.MessageId)
+          |> Array.ofSeq
+        | ids -> 
+          ids 
+          |> Array.map (fun m -> m.MessageId)
+      return ids
     }
