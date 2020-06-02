@@ -15,7 +15,7 @@ jobs:
       with:
         username: ${{ secrets.AZURE_DOCKER_REGISTRY_USER }}
         password: ${{ secrets.AZURE_DOCKER_REGISTRY_PASSWORD }}
-        login-server: ${{ secrets.AZURE_DOCKER_REGISTRY_SERVER }}
+        login-server: https://dotnetru.azurecr.io/v1
     
     - uses: actions/checkout@v2
       
@@ -23,7 +23,7 @@ jobs:
       run: docker build . -t grinder --build-arg APP_CONFIG=${{ secrets.BOT_AZURE_APP_CONFIG }}
     
     - name: Tag Docker image
-      run: docker tag grinder ${{ secrets.AZURE_DOCKER_REGISTRY_SERVER }}/vahter/grinder
+      run: docker tag grinder dotnetru.azurecr.io/vahter/grinder
       
     - name: Push Docker image
       run: docker push dotnetru.azurecr.io/vahter/grinder
