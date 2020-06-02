@@ -1,5 +1,6 @@
 ﻿namespace Grinder
 
+open System.Net
 open Microsoft.Extensions.Configuration
 open Funogram
 open Grinder
@@ -153,23 +154,31 @@ module Program =
 
         GrinderContext.MigrateUp()
         
-        async {
-            printfn "Starting bot"
+        printfn "Starting bot"
+        
+        let settings = {
+            Token = config.Token
+            ChatsToMonitor = ChatsToMonitor.Create config.ChatsToMonitor
+            AllowedUsers = AllowedUsers.Create config.AllowedUsers
+            ChannelId = %config.ChannelId
+            AdminUserId = %config.AdminUserId
+        }
+        startBot botConfiguration (onUpdate settings (createBotApi botConfiguration settings) dataApi) None
+        |> Async.Start
             
-            let settings = {
-                Token = config.Token
-                ChatsToMonitor = ChatsToMonitor.Create config.ChatsToMonitor
-                AllowedUsers = AllowedUsers.Create config.AllowedUsers
-                ChannelId = %config.ChannelId
-                AdminUserId = %config.AdminUserId
-            }
-            do! startBot botConfiguration (onUpdate settings (createBotApi botConfiguration settings) dataApi) None
-                |> Async.StartChild
-                |> Async.Ignore
-                
-            printfn "Bot started"
-            do! Async.Sleep(-1)
-        } |> Async.RunSynchronously
+        printfn "Bot started"
+        
+        use listener = new HttpListener()
+        listener.Prefixes.Add("http://*:80/")
+        listener.Start()
+        
+        let buffer = System.Text.Encoding.UTF8.GetBytes "OK"
+        
+        while true do
+            let ctx = listener.GetContext()
+            let output = ctx.Response.OutputStream
+            output.Write(buffer, 0, buffer.Length)
+            output.Close();
         
         printfn "Bot exited"
         0 // return an integer exit code
