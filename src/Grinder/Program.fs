@@ -10,6 +10,7 @@ open Funogram.Api
 open Funogram.Bot
 open Funogram.Types
 open FunogramExt
+open System
     
 module Program =
     open System.Net.Http
@@ -40,10 +41,11 @@ module Program =
         Bot: BotConfig
     }
     
-    let createHttpClient config =
+    let createHttpClient (config: Socks5Configuration) =
         let messageHandler = new HttpClientHandler()
-        messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
-        messageHandler.UseProxy <- true
+        if not (isNull (box config)) then
+            messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
+            messageHandler.UseProxy <- true
         new HttpClient(messageHandler)
    
     let createBotApi config (settings: BotSettings) = {
@@ -124,11 +126,20 @@ module Program =
         
     [<EntryPoint>]
     let main _ =
-        let config =
+        let mutable configBuilder =
             ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", false, true)
                 .AddJsonFile("/etc/grinder/appsettings.json", true, true)
                 .AddEnvironmentVariables("Grinder_")
+                
+        match Environment.GetEnvironmentVariable("DOTNETRU_APP_CONFIG") with
+        | null -> ()
+        | connString ->
+            configBuilder <- configBuilder
+                .AddAzureAppConfiguration connString
+                
+        let config =
+            configBuilder
                 .Build()
                 .Get<Config>()
                 .Bot;
