@@ -166,22 +166,21 @@ module Program =
         }
         startBot botConfiguration (onUpdate settings (createBotApi botConfiguration settings) dataApi) None
         |> Async.Start
-            
+
         printfn "Bot started"
         
-        Thread.Sleep -1
+        // Needed for azure web app deploy check. We have to response with anything on port 80
+        use listener = new HttpListener()
+        listener.Prefixes.Add("http://*:80/")
+        listener.Start()
         
-//        use listener = new HttpListener()
-//        listener.Prefixes.Add("http://*:80/")
-//        listener.Start()
-//        
-//        let buffer = System.Text.Encoding.UTF8.GetBytes "OK"
-//        
-//        while true do
-//            let ctx = listener.GetContext()
-//            let output = ctx.Response.OutputStream
-//            output.Write(buffer, 0, buffer.Length)
-//            output.Close();
+        let buffer = System.Text.Encoding.UTF8.GetBytes "OK"
+        
+        while true do
+            let ctx = listener.GetContext()
+            let output = ctx.Response.OutputStream
+            output.Write(buffer, 0, buffer.Length)
+            output.Close();
         
         printfn "Bot exited"
         0 // return an integer exit code
