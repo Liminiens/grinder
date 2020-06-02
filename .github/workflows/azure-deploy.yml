@@ -20,7 +20,7 @@ jobs:
     - uses: actions/checkout@v2
       
     - name: Build Docker image
-      run: docker build . -t grinder --build-arg APP_CONFIG=${{ secrets.BOT_AZURE_APP_CONFIG }}
+      run: docker build . -t grinder
     
     - name: Tag Docker image
       run: docker tag grinder dotnetru.azurecr.io/vahter/grinder

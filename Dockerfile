@@ -20,9 +20,6 @@ FROM mcr.microsoft.com/dotnet/core/runtime:3.1
 
 EXPOSE 80
 
-ARG APP_CONFIG
-ENV DOTNETRU_APP_CONFIG ${APP_CONFIG}
-
 WORKDIR /app
 COPY --from=build-dotnet /app/src/Grinder/out .
 
