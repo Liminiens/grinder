@@ -1,6 +1,7 @@
 ﻿namespace Grinder
 
 open System.Net
+open System.Threading
 open Microsoft.Extensions.Configuration
 open Funogram
 open Grinder
@@ -168,17 +169,19 @@ module Program =
             
         printfn "Bot started"
         
-        use listener = new HttpListener()
-        listener.Prefixes.Add("http://*:80/")
-        listener.Start()
+        Thread.Sleep -1
         
-        let buffer = System.Text.Encoding.UTF8.GetBytes "OK"
-        
-        while true do
-            let ctx = listener.GetContext()
-            let output = ctx.Response.OutputStream
-            output.Write(buffer, 0, buffer.Length)
-            output.Close();
+//        use listener = new HttpListener()
+//        listener.Prefixes.Add("http://*:80/")
+//        listener.Start()
+//        
+//        let buffer = System.Text.Encoding.UTF8.GetBytes "OK"
+//        
+//        while true do
+//            let ctx = listener.GetContext()
+//            let output = ctx.Response.OutputStream
+//            output.Write(buffer, 0, buffer.Length)
+//            output.Close();
         
         printfn "Bot exited"
         0 // return an integer exit code
