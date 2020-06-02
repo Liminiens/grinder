@@ -10,3 +10,4 @@ Microsoft.Extensions.Configuration.Binder
 Microsoft.Extensions.Configuration.EnvironmentVariables
 Microsoft.Extensions.Configuration.Json
 Newtonsoft.Json
+FSharp.Control.AsyncSeq

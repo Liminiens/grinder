@@ -5,6 +5,7 @@ open Hopac
 open Microsoft.EntityFrameworkCore
 open Grinder.DataAccess
 open System.Linq
+open FSharp.Control
     
 type FindUserIdByUsernameResult =
   | UserIdNotFound
@@ -68,22 +69,21 @@ module Datastore =
   let getLastThreeMessages chatId userId =
     job {
       use context = new GrinderContext()
-      let! idsFromDb = 
-        Job.fromTask (fun () ->
-          context.Messages
-            .Where(fun m -> m.ChatId = chatId && m.UserId = userId)
-            .OrderByDescending(fun m -> m.Date)
-            .ToArrayAsync()
-        )
-      let ids =
-        match idsFromDb with
-        | ids when ids.Length > 3 ->
-          Seq.take 3 ids 
-          |> Seq.map (fun m -> m.MessageId)
-          |> Array.ofSeq
-        | ids -> 
-          ids 
-          |> Array.map (fun m -> m.MessageId)
+      let takeUpToThree =
+        let mutable count = 0
+        fun _ ->
+          count <- count + 1
+          count < 3 |> async.Return
+
+      let! ids = 
+        context.Messages
+          .Where(fun m -> m.ChatId = chatId && m.UserId = userId)
+          .OrderByDescending(fun m -> m.Date)
+        |> AsyncSeq.ofIQueryable
+        |> AsyncSeq.takeWhileAsync takeUpToThree
+        |> AsyncSeq.mapAsync (fun m -> m.MessageId |> async.Return)
+        |> AsyncSeq.toArrayAsync
+        |> Job.fromAsync
       return ids
     }
 
