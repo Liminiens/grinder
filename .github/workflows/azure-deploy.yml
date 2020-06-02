@@ -1,0 +1,26 @@
+name: Deploy docker image
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Docker Login
+      uses: Azure/docker-login@v1
+      with:
+        username: ${{ secrets.AZURE_DOCKER_REGISTRY_USER }}
+        password: ${{ secrets.AZURE_DOCKER_REGISTRY_PASSWORD }}
+        login-server: ${{ secrets.AZURE_DOCKER_REGISTRY_SERVER }}
+    
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v1.1.0
+      with:
+        # Docker repository to tag the image with
+        repository: vahter
+        # Comma-delimited list of tags. These will be added to the registry/repository to form the image's tags
+        tags: grinder
