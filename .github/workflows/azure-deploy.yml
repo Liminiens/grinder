@@ -19,10 +19,12 @@ jobs:
     
     - uses: actions/checkout@v2
       
-    - name: Build and push Docker images
-      uses: docker/build-push-action@v1.1.0
-      with:
-        # Docker repository to tag the image with
-        repository: vahter
-        # Comma-delimited list of tags. These will be added to the registry/repository to form the image's tags
-        tags: grinder
+    - name: Build Docker image
+      run: docker build . -t grinder --build-arg APP_CONFIG=${{ secrets.BOT_AZURE_APP_CONFIG }}
+    
+    - name: Tag Docker image
+      run: docker tag grinder ${{ secrets.AZURE_DOCKER_REGISTRY_SERVER }}/vahter/grinder
+      
+    - name: Push Docker image
+      run: docker push dotnetru.azurecr.io/vahter/grinder
+      
