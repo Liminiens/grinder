@@ -18,6 +18,9 @@ RUN dotnet publish -r linux-x64 -c Release -o out
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/core/runtime:3.1
 
+ARG APP_CONFIG
+ENV DOTNETRU_APP_CONFIG ${APP_CONFIG}
+
 WORKDIR /app
 COPY --from=build-dotnet /app/src/Grinder/out .
 
