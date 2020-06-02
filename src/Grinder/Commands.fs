@@ -440,6 +440,11 @@ module Processing =
     |> Option.map settings.ChatsToMonitor.Set.Contains
     |> Option.defaultValue false
 
+  let inline usernameToStringOrNull (username: string option) =
+    match username with
+    | Some u -> u
+    | None -> null
+
   let executeCommand config (botSettings: BotSettings) command: Job<CommandMessage option> = job {
     let getErrors results =
       results
@@ -457,12 +462,10 @@ module Processing =
     match command with
     | TextBanCommand context ->
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
-      |> Job.Ignore
-      |> queue
+      |> queueIgnore
 
       ApiExt.deleteMessageWithRetry config context.ChatId context.ReplyToMessageId 
-      |> Job.Ignore
-      |> queue
+      |> queueIgnore
       
       do
         let username = 
@@ -483,7 +486,7 @@ module Processing =
           let! username = Datastore.getUsernameByUserId context.UserId
           return 
             username
-            |> Option.map ^ fun name -> (sprintf "@%s" name)
+            |> Option.map (sprintf "@%s")
             |> Option.defaultValue "unknown user"
       }
 
@@ -493,15 +496,13 @@ module Processing =
             for chat in botSettings.ChatsToMonitor.Set do
               yield 
                 ApiExt.banUserByUserId config chat context.UserId (DateTime.UtcNow.AddMonths(13))
-                |> Job.map ^ fun result ->
-                  Result.mapError ApiError result
+                |> Job.map ^ Result.mapError ApiError
           |]
         else
-          [|
-            sprintf "Cannot ban admin %s" username
-            |> createCommandError AdminBanNotAllowedError
-            |> Job.result
-          |]
+          sprintf "Cannot ban admin %s" username
+          |> createCommandError AdminBanNotAllowedError
+          |> Job.result
+          |> Array.singleton
               
       let! errors =
         requests
@@ -526,9 +527,7 @@ module Processing =
             for chat in botSettings.ChatsToMonitor.Set do
               yield 
                 ApiExt.banUserByUsername config chat username context.Until.Value
-                |> Job.map (fun result ->
-                  Result.mapError ApiError result
-                )
+                |> Job.map ^ Result.mapError ApiError
           else
             yield 
               sprintf "Cannot ban admin @%s" username
@@ -551,18 +550,13 @@ module Processing =
 
     | BanOnReplyCommand context ->
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
-      |> Job.Ignore
-      |> queue
+      |> queueIgnore
 
       ApiExt.deleteMessageWithRetry config context.ChatId context.ReplyToMessageId 
-      |> Job.Ignore
-      |> queue
+      |> queueIgnore
       
       do
-        let username = 
-          match context.Username with
-          | Some username -> username
-          | None -> null
+        let username = usernameToStringOrNull context.Username
         
         DataAccess.User(UserId = context.UserId, Username = username)
         |> UserStream.push
@@ -577,7 +571,7 @@ module Processing =
           let! username = Datastore.getUsernameByUserId context.UserId
           return 
             username
-            |> Option.map ^ fun name -> (sprintf "@%s" name)
+            |> Option.map (sprintf "@%s")
             |> Option.defaultValue "unknown user"
       }
 
@@ -587,15 +581,13 @@ module Processing =
             for chat in botSettings.ChatsToMonitor.Set do
               yield 
                 ApiExt.banUserByUserId config chat context.UserId (DateTime.UtcNow.AddMonths(13))
-                |> Job.map ^ fun result ->
-                  Result.mapError ApiError result
+                |> Job.map ^ Result.mapError ApiError
           |]
         else
-          [|
-            sprintf "Cannot ban admin %s" username
-            |> createCommandError AdminBanNotAllowedError
-            |> Job.result
-          |]
+          sprintf "Cannot ban admin %s" username
+          |> createCommandError AdminBanNotAllowedError
+          |> Job.result
+          |> Array.singleton
               
       let! errors =
         requests
@@ -612,23 +604,18 @@ module Processing =
 
     | UnbanCommand context ->
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
-      |> Job.Ignore
-      |> queue
+      |> queueIgnore
       
       let requests = [|
         for username in context.Usernames do
           for chat in botSettings.ChatsToMonitor.Set do
             yield 
               ApiExt.unbanUserByUsername config chat username
-              |> Job.map (fun result ->
-                Result.mapError ApiError result
-              )
+              |> Job.map ^ Result.mapError ApiError
           
             yield 
               ApiExt.unrestrictUserByUsername config chat username
-              |> Job.map (fun result ->
-                Result.mapError ApiError result
-              )
+              |> Job.map ^ Result.mapError ApiError
       |]
 
       let! errors =
@@ -659,10 +646,7 @@ module Processing =
     job {
       match message.From with
       | Some user ->
-        let username =
-          match user.Username with
-          | Some username -> username
-          | None -> null
+        let username = usernameToStringOrNull user.Username
 
         let userToUpdate = DataAccess.User(UserId = user.Id, Username = username)
         let message = DataAccess.Message(MessageId = message.MessageId, ChatId = message.Chat.Id, UserId = user.Id)
@@ -702,11 +686,7 @@ module Processing =
   let processNewUsersAddedToChat (users: User seq): Job<unit> =
     users
     |> Seq.map (fun u ->
-      let username =
-        match u.Username with
-        | Some username -> username
-        | None -> null
-
+      let username = usernameToStringOrNull u.Username
       DataAccess.User(UserId = u.Id, Username = username)
       |> UserStream.push
     )
@@ -717,8 +697,8 @@ module Processing =
       let errorsText = [|
         for error in errors do
           match error with
-          | ApiError e -> yield e
-          | AdminBanNotAllowedError e -> yield e
+          | ApiError e -> e
+          | AdminBanNotAllowedError e -> e
       |]
       match errorsText with
       | [||] ->

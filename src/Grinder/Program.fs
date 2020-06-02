@@ -175,7 +175,7 @@ module Program =
     Mailbox.take updateBox
     |> Job.map processUpdate
     |> Job.forever
-    |> start
+    |> queue
 
     System.Console.ReadKey() |> ignore
     printfn "Bot exited"
