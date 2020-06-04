@@ -19,10 +19,9 @@ type FindUsernameByUserIdResult =
 module Datastore =
   let upsertUsers (users: User seq) =
     job {
-      for chunk in Seq.chunkBySize 500 users do
-        use context = new GrinderContext()
-        do! Job.fromUnitTask (fun () -> context.Users.AddOrUpdateUsers(chunk))
-        do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
+      use context = new GrinderContext()
+      do! Job.fromUnitTask (fun () -> context.Users.AddOrUpdateUsers(users))
+      do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
     }
   
   let findUserIdByUsername (username: string) =
