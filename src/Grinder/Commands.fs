@@ -458,7 +458,7 @@ module Processing =
       botSettings.AllowedUsers.Set
       |> Set.contains username
       |> not
-    
+
     match command with
     | TextBanCommand context ->
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
@@ -468,10 +468,7 @@ module Processing =
       |> queueIgnore
       
       do
-        let username = 
-          match context.Username with
-          | Some username -> username
-          | None -> null
+        let username = usernameToStringOrNull context.Username
         
         DataAccess.User(UserId = context.UserId, Username = username)
         |> UserStream.push
