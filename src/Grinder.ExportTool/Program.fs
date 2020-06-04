@@ -102,7 +102,7 @@ let getAllSupergroupMembers (dialer: Dialer) supergroupId = task {
         )
       result.AddRange(groupMembers.Members)
       if groupMembers.Members.Length = 0 then
-        return (ResizeArray(groupMembers.Members))
+        return ResizeArray()
       elif result.Count < memberCount then
         return! call result
       else
@@ -177,7 +177,7 @@ let main argv =
       )
       |> AsyncSeq.toListAsync
     
-    let filePath = Path.Combine(Directory.GetCurrentDirectory(), sprintf "%s.json" (Guid.NewGuid().ToString()))
+    let filePath = Path.Combine(Directory.GetCurrentDirectory(), sprintf "users_export_%s.json" (Guid.NewGuid().ToString()))
     use stream = new StreamWriter(File.Create filePath)
 
     users

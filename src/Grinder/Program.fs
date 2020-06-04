@@ -6,6 +6,8 @@ open Grinder
 open Grinder.DataAccess
 open Grinder.Commands
 open Grinder.Types
+open Funogram.Api
+open Funogram.Telegram
 open Funogram.Telegram.Bot
 open Funogram.Types
 open FunogramExt
@@ -90,8 +92,16 @@ module Program =
       match updateType with
       | Some newMessage ->
         match newMessage with
-        | NewAdminUsersFileMessage document ->
-          do! processAdminCommand settings context.Config document.FileId
+        | NewAdminUsersFileMessage(chatId, document) ->
+          match document.FileName, document.MimeType with
+          | Some name, Some mimeType when name.StartsWith("users_export") && mimeType = "application/json" ->
+            do! processAdminCommand settings context.Config document.FileId
+
+          | _ ->
+            Api.sendMessage chatId "Expecting file starting with users_export with mime type application/json"
+            |> api context.Config
+            |> Job.fromAsync
+            |> queueIgnore
 
         | NewUsersAddedToChat(users, chatUsername) ->
           if authorizeChat settings chatUsername then
@@ -108,15 +118,18 @@ module Program =
                 |> formatMessage
                 |> sendTextToChannel
                 |> queueIgnore
+
               | None ->
                 if authorizeChat settings (Some newMessage.ChatUsername) then
                   do! processCommonTextMessage message
+
             | CommandNotAllowed ->
               if authorizeChat settings (Some newMessage.ChatUsername) then
                 do! processCommonTextMessage message
               
               ApiExt.deleteMessageWithRetry context.Config newMessage.Message.Chat.Id newMessage.Message.MessageId
               |> queueIgnore
+
           | None ->
             if authorizeChat settings message.Chat.Username then
               do! processCommonTextMessage message
@@ -132,14 +145,17 @@ module Program =
                 |> formatMessage
                 |> sendTextToChannel
                 |> queueIgnore
+
               | None ->
                 do! processCommonTextMessage reply.Message
+
             | CommandNotAllowed ->
               if authorizeChat settings reply.Message.Chat.Username then
                 do! processCommonTextMessage reply.Message
 
               ApiExt.deleteMessageWithRetry context.Config reply.Message.Chat.Id reply.Message.MessageId
               |> queueIgnore
+
           | None ->
             if authorizeChat settings reply.Message.Chat.Username then
               do! processCommonTextMessage reply.Message

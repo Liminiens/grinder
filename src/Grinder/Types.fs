@@ -31,7 +31,7 @@ type UpdateType =
   | NewReplyMessage of ReplyMessage
   | NewUsersAddedToChat of User list * chatUsername: string option
   | NewMessage of Message
-  | NewAdminUsersFileMessage of Document
+  | NewAdminUsersFileMessage of chatId: int64 * Document
 
 [<RequireQualifiedAccess>]   
 module UpdateType =
@@ -41,7 +41,7 @@ module UpdateType =
       if message.Chat.Id = settings.AdminUserId then
         match message.Document with
         | Some document ->
-          NewAdminUsersFileMessage document
+          NewAdminUsersFileMessage(message.Chat.Id, document)
         | None ->
           IgnoreMessage
 
