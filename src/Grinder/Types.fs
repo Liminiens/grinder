@@ -39,10 +39,11 @@ module UpdateType =
     update.Message
     |> Option.map ^ fun message ->
       if message.Chat.Id = settings.AdminUserId then
-        match message.Document with
-        | Some document ->
+        match message.Document, message.Text with
+        | Some document, None ->
           NewAdminUsersFileMessage(message.Chat.Id, document)
-        | None ->
+
+        | _ ->
           IgnoreMessage
 
       else
