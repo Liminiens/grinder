@@ -66,25 +66,30 @@ module Datastore =
       do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
     }
 
-  let getLastThreeMessages chatId userId =
+  let getLastThreeMessagesInChats userId =
     job {
       use context = new GrinderContext()
       let takeUpToThree =
         let mutable count = 0
         fun _ ->
           count <- count + 1
-          count < 3 |> async.Return
+          count < 3
 
-      let! ids = 
-        context.Messages
-          .Where(fun m -> m.ChatId = chatId && m.UserId = userId)
-          .OrderByDescending(fun m -> m.Date)
-        |> AsyncSeq.ofIQueryable
-        |> AsyncSeq.takeWhileAsync takeUpToThree
-        |> AsyncSeq.mapAsync (fun m -> m.MessageId |> async.Return)
-        |> AsyncSeq.toArrayAsync
-        |> Job.fromAsync
-      return ids
+      let! messages = 
+        Job.fromTask(fun () ->
+          context.Messages
+            .Where(fun m -> m.UserId = userId)
+            .GroupBy(fun m -> m.ChatId)
+            .Select(fun g -> 
+              let messages =
+                g.OrderByDescending(fun m -> m.Date)
+                 .TakeWhile(takeUpToThree)
+                 .ToArray()
+              {| ChatId = g.Key; Messages = messages |}
+            )
+            .ToArrayAsync()
+        )
+      return messages
     }
 
   let startMessageCleanupJob() =

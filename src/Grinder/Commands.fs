@@ -323,7 +323,6 @@ module Processing =
   }
   
   type Command =
-    | TextBanCommand of ActionOnReplyCommandContext
     | BanCommand of BanCommandContext
     | BanOnReplyCommand of ActionOnReplyCommandContext
     | UnbanCommand of UnbanCommandContext
@@ -459,78 +458,52 @@ module Processing =
       |> Set.contains username
       |> not
 
+    let deleteThreeMessagesInChats userId =
+      job {
+        let! messagesInChats = Datastore.getLastThreeMessagesInChats userId
+        return!
+          messagesInChats
+          |> Seq.collect(fun chat ->
+            chat.Messages
+            |> Seq.map(fun message ->
+              ApiExt.deleteMessageWithRetry config chat.ChatId message.MessageId
+            )
+          )
+          |> Job.conIgnore
+      }
+
     match command with
-    | TextBanCommand context ->
-      ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
-      |> queueIgnore
-
-      ApiExt.deleteMessageWithRetry config context.ChatId context.ReplyToMessageId 
-      |> queueIgnore
-      
-      do
-        let username = usernameToStringOrNull context.Username
-        
-        DataAccess.User(UserId = context.UserId, Username = username)
-        |> UserStream.push
-        |> queue
-
-      let! username = job {
-        match context.Username with
-        | Some username ->
-          return username
-
-        | None ->
-          let! username = Datastore.getUsernameByUserId context.UserId
-          return 
-            username
-            |> Option.map (sprintf "@%s")
-            |> Option.defaultValue "unknown user"
-      }
-
-      let requests =
-        if userCanBeBanned username then
-          [|
-            for chat in botSettings.ChatsToMonitor.Set do
-              yield 
-                ApiExt.banUserByUserId config chat context.UserId (DateTime.UtcNow.AddMonths(13))
-                |> Job.map ^ Result.mapError ApiError
-          |]
-        else
-          sprintf "Cannot ban admin %s" username
-          |> createCommandError AdminBanNotAllowedError
-          |> Job.result
-          |> Array.singleton
-              
-      let! errors =
-        requests
-        |> Job.conCollect
-        |> Job.map getErrors
-      
-      let message = {
-        Chats = botSettings.ChatsToMonitor.Set
-        Username = username
-        UserId = context.UserId
-      }
-      
-      return Some <| BanOnReplyMessage(context.From, message, errors)
-
     | BanCommand context ->
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
       |> queueIgnore
       
-      let requests = [|
-        for username in context.Usernames do
-          if userCanBeBanned username then
-            for chat in botSettings.ChatsToMonitor.Set do
-              yield 
-                ApiExt.banUserByUsername config chat username context.Until.Value
-                |> Job.map ^ Result.mapError ApiError
-          else
-            yield 
-              sprintf "Cannot ban admin @%s" username
-              |> createCommandError AdminBanNotAllowedError
-              |> Job.result
-      |]
+      let! requests = 
+        job {
+          let! userIdsToBan =
+            context.Usernames
+            |> Seq.filter userCanBeBanned
+            |> Seq.map Datastore.findUserIdByUsername
+            |> Job.conCollect
+
+          //delete messages
+          for userIdResult in userIdsToBan do
+            match userIdResult with
+            | UserIdFound userId ->
+              deleteThreeMessagesInChats userId
+              |> queue
+            | UserIdNotFound -> ()
+
+          return [|
+            for userIdResult in userIdsToBan do
+              match userIdResult with
+              | UserIdFound userId ->
+                for chat in botSettings.ChatsToMonitor.Set do
+                  yield 
+                    ApiExt.banUserByUserId config chat userId context.Until.Value
+                    |> Job.map ^ Result.mapError ApiError
+              | UserIdNotFound -> ()
+          |]
+        }
        
       let! errors =
         requests
@@ -548,9 +521,6 @@ module Processing =
     | BanOnReplyCommand context ->
       ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
       |> queueIgnore
-
-      ApiExt.deleteMessageWithRetry config context.ChatId context.ReplyToMessageId 
-      |> queueIgnore
       
       do
         let username = usernameToStringOrNull context.Username
@@ -574,17 +544,27 @@ module Processing =
 
       let requests =
         if userCanBeBanned username then
+          ApiExt.deleteMessageWithRetry config context.ChatId context.ReplyToMessageId 
+          |> queueIgnore
+
+          deleteThreeMessagesInChats context.UserId
+          |> queue
+
           [|
             for chat in botSettings.ChatsToMonitor.Set do
               yield 
                 ApiExt.banUserByUserId config chat context.UserId (DateTime.UtcNow.AddMonths(13))
                 |> Job.map ^ Result.mapError ApiError
           |]
-        else
+
+        elif username <> "unkown user" then
           sprintf "Cannot ban admin %s" username
           |> createCommandError AdminBanNotAllowedError
           |> Job.result
           |> Array.singleton
+
+        else
+          Array.empty
               
       let! errors =
         requests

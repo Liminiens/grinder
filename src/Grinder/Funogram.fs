@@ -44,55 +44,23 @@ module ApiExt =
       UntilDate: int64 }
     interface IRequestBase<bool> with
       member __.MethodName = "kickChatMember"
-      
-  type RestrictChatMemberReqExt = 
-    { ChatId: ChatId
-      UserId: int64
-      UntilDate: int64
-      CanSendMessages: bool option
-      CanSendMediaMessages: bool option
-      CanSendOtherMessages: bool option
-      CanAddWebPagePreviews: bool option }
-    interface IRequestBase<bool> with
-      member __.MethodName = "restrictChatMember"
-  
-  let restrictPermissions = 
-    { ChatPermissions.CanAddWebPagePreviews = Some false
-      CanSendMessages = Some false
-      CanSendMediaMessages = Some false 
-      CanSendPools = Some false 
-      CanSendOtherMessages = Some false
-      CanChangeInfo = Some false 
-      CanInviteUsers = Some false 
-      CanPinMessages = Some false }
+
+  let unrestrictPermissions = 
+    { ChatPermissions.CanAddWebPagePreviews = Some true
+      CanSendMessages = Some true
+      CanSendMediaMessages = Some true 
+      CanSendPools = Some true 
+      CanSendOtherMessages = Some true
+      CanChangeInfo = Some true 
+      CanInviteUsers = Some true 
+      CanPinMessages = Some true }
 
   let unbanChatMemberByChatNameExt chatName userId : UnbanChatMemberReq =
     { ChatId = ChatId.String chatName; UserId = userId }
-           
-  let restrictChatMemberBaseExt chatId userId (untilDate: DateTime) canSendMessages canSendMediaMessages canSendOtherMessages canAddWebPagePreviews =
-    let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds
-    { ChatId = chatId; UserId = userId; UntilDate = seconds; CanSendMessages = canSendMessages; 
-    CanSendMediaMessages = canSendMediaMessages; CanSendOtherMessages = canSendOtherMessages; CanAddWebPagePreviews = canAddWebPagePreviews }
-  
+
   let kickChatMemberByChatNameUntilExt chatName userId (untilDate: DateTime): KickChatMemberReqExt =
     let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds
     { ChatId = (ChatId.String chatName); UserId = userId; UntilDate = seconds }
-      
-  let banUserByUsername context chat username until = 
-    job {
-      match! Datastore.findUserIdByUsername username with
-      | UserIdFound userId ->
-        let! banResult =  
-          kickChatMemberByChatNameUntilExt chat userId until
-          |> callApiWithDefaultRetry context
-        match banResult with
-        | Ok _ ->
-          return Ok ()
-        | Error e ->
-          return Error <| sprintf "Failed to ban %s in chat %s. Description: %s" username chat e.Description
-      | UserIdNotFound ->
-        return Error <| sprintf "Couldn't resolve username %s" username
-    }
 
   let banUserByUserId context chat userId until = 
     job {
@@ -127,7 +95,7 @@ module ApiExt =
       match! Datastore.findUserIdByUsername username with
       | UserIdFound userId ->
         let! restrictResult = 
-          restrictChatMemberBase (ChatId.String chat) userId restrictPermissions None
+          restrictChatMemberBase (ChatId.String chat) userId unrestrictPermissions None
           |> callApiWithDefaultRetry context
         match restrictResult with
         | Ok _ ->
