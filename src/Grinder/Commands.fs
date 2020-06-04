@@ -1,5 +1,8 @@
 namespace Grinder.Commands
 
+//always holds
+#nowarn "0025"
+
 open Hopac
 open System
 open Grinder
@@ -331,6 +334,7 @@ module Processing =
   type CommandError =
     | ApiError of string
     | AdminBanNotAllowedError of string
+    | CouldNotResolveUsername of string
   
   type IMessage =
     abstract member FormatAsString: unit -> string
@@ -479,29 +483,45 @@ module Processing =
       
       let! requests = 
         job {
-          let! userIdsToBan =
+          let! (userIds, usernames) =
             context.Usernames
             |> Seq.filter userCanBeBanned
-            |> Seq.map Datastore.findUserIdByUsername
+            |> Seq.map (fun username ->
+              job {
+                match! Datastore.findUserIdByUsername username with
+                | UserIdFound id -> 
+                  return Choice1Of2 id
+                | UserIdNotFound -> 
+                  return Choice2Of2 username
+              }
+            )
             |> Job.conCollect
+            |> Job.map (fun result ->
+              result
+              |> Array.ofSeq 
+              |> Array.partition (function Choice1Of2 _ -> true | Choice2Of2 _ -> false)
+              |> (fun (ids, usernames) ->
+                ids |> Array.map (fun (Choice1Of2 id) -> id),
+                usernames |> Array.map (fun (Choice2Of2 username) -> username)
+              )
+            )
 
           //delete messages
-          for userIdResult in userIdsToBan do
-            match userIdResult with
-            | UserIdFound userId ->
-              deleteThreeMessagesInChats userId
-              |> queue
-            | UserIdNotFound -> ()
+          userIds
+          |> Seq.map deleteThreeMessagesInChats
+          |> Job.conIgnore
+          |> queue
 
           return [|
-            for userIdResult in userIdsToBan do
-              match userIdResult with
-              | UserIdFound userId ->
-                for chat in botSettings.ChatsToMonitor.Set do
-                  yield 
-                    ApiExt.banUserByUserId config chat userId context.Until.Value
-                    |> Job.map ^ Result.mapError ApiError
-              | UserIdNotFound -> ()
+            for userId in userIds do
+              for chat in botSettings.ChatsToMonitor.Set do
+                yield 
+                  ApiExt.banUserByUserId config chat userId context.Until.Value
+                  |> Job.map ^ Result.mapError ApiError
+
+            for username in usernames do
+              let text = sprintf "Couldn't resolve username %s" username
+              yield Error(CouldNotResolveUsername text) |> Job.result
           |]
         }
        
@@ -676,6 +696,7 @@ module Processing =
           match error with
           | ApiError e -> e
           | AdminBanNotAllowedError e -> e
+          | CouldNotResolveUsername e -> e
       |]
       match errorsText with
       | [||] ->
