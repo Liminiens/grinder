@@ -18,6 +18,11 @@ module Parser =
   
   let pbotUsername botUsername : Parser<string, unit> =
     spaces >>. (str botUsername) .>> spaces
+        
+  let pusername: Parser<string, unit> =
+    let validate char =
+      (not <| Char.IsWhiteSpace(char)) && char <> '@'
+    pipe2 (str "@") (manySatisfy validate) (+)
 
   type Usernames = Usernames of string array
   
@@ -79,6 +84,18 @@ module Parser =
     | BotReplyCommandResult of BotReplyCommand
     | InvalidBotReplyCommand of ParserError
 
+  type AdminPrivateCommand =
+    | Help
+    | Config
+    | AddAdminUser of username: string
+    | RemoveAdminUser of username: string
+    | AddChat of username: string
+    | RemoveChat of username: string
+
+  type AdminPrivateCommandResult =
+    | AdminPrivateCommandResult of AdminPrivateCommand
+    | InvalidAdminPrivateCommand of ParserError
+
   [<RequireQualifiedAccess>]
   module UsernameCommands =
     let pminutes: Parser<uint32, unit> =
@@ -90,11 +107,6 @@ module Parser =
         
     let pmonths: Parser<uint32, unit> =
       (puint32 .>> spaces) .>> (regex "month(s)?")
-        
-    let pusername: Parser<string, unit> =
-      let validate char =
-        (not <| Char.IsWhiteSpace(char)) && char <> '@'
-      pipe2 (str "@") (manySatisfy validate) (+)
     
     let many1Usernames: Parser<string list, unit> =
       many1 (pusername .>> spaces)
@@ -140,8 +152,8 @@ module Parser =
         BotUsernameCommand(Usernames(Array.ofList usernames), command)
       )
         
-    let runCommandParser botUsername str: ParserResult<BotUsernameCommand, unit> =
-      run (parseCommand botUsername) str
+    let runCommandParser botUsername text: ParserResult<BotUsernameCommand, unit> =
+      run (parseCommand botUsername) text
     
     let parse botUsername text =
       match runCommandParser botUsername text with
@@ -163,8 +175,8 @@ module Parser =
     let parseCommand botUsername =
       (pBotUsernameBan botUsername) <|> pBanText
         
-    let runCommandParser botUsername str: ParserResult<BotReplyCommand, unit> =
-      run (parseCommand botUsername) str
+    let runCommandParser botUsername text: ParserResult<BotReplyCommand, unit> =
+      run (parseCommand botUsername) text
     
     let parse botUsername text =
       match runCommandParser botUsername text with
@@ -173,6 +185,47 @@ module Parser =
     
       | Failure(errorMsg, _, _) ->
         InvalidBotReplyCommand errorMsg
+
+  [<RequireQualifiedAccess>]
+  module AdminPrivateCommands =
+    let pHelpCommand: Parser<AdminPrivateCommand, unit> =
+      str "/help" >>% Help
+
+    let pConfigCommand: Parser<AdminPrivateCommand, unit> =
+      str "/config" >>% Config
+
+    let pAddAdminCommand: Parser<AdminPrivateCommand, unit> =
+      str "/add_admin" .>> spaces >>. pusername |>> AddAdminUser
+
+    let pRemoveAdminCommand: Parser<AdminPrivateCommand, unit> =
+      str "/remove_admin" .>> spaces >>. pusername |>> RemoveAdminUser
+
+    let pAddChatCommand: Parser<AdminPrivateCommand, unit> =
+      str "/add_chat" .>> spaces >>. pusername |>> AddChat
+
+    let pRemoveChatCommand: Parser<AdminPrivateCommand, unit> =
+      str "/remove_chat" .>> spaces >>. pusername |>> RemoveChat
+
+    let parseCommand =
+      choice [|
+        pHelpCommand
+        pConfigCommand
+        pAddAdminCommand
+        pRemoveAdminCommand
+        pAddChatCommand
+        pRemoveChatCommand
+      |]
+      
+    let runCommandParser text: ParserResult<AdminPrivateCommand, unit> =
+      run parseCommand text
+    
+    let parse text =
+      match runCommandParser text with
+      | Success(result, _, _)   ->
+        AdminPrivateCommandResult result
+    
+      | Failure(errorMsg, _, _) ->
+        InvalidAdminPrivateCommand errorMsg
 
 module Processing =
   open Funogram.Types

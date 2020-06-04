@@ -6,6 +6,29 @@ open Grinder.Commands.Parser
 open FParsec
     
 [<Theory>]
+[<InlineData("@name", "@name")>]
+[<InlineData("@name  123", "@name")>]
+[<InlineData("@name  @other", "@name")>]
+[<InlineData("@name@other", "@name")>]
+let ``pusername parses username`` (command: string, expected: string) =
+  match run pusername command with
+  | Success(res, _, _) ->
+    Assert.Equal(expected, res)
+  | Failure(error, _, _ ) ->
+    Assert.FailWithMessage(error)
+
+[<Theory>]
+[<InlineData("@bot", "@bot")>]
+[<InlineData(" @bot ", "@bot")>]
+[<InlineData("\r\n@bot ", "@bot")>]
+let ``pbotUsername parses bot username`` (command: string, expected: string) =
+  match run (pbotUsername expected) command with
+  | Success(res, _, _) ->
+    Assert.Equal(expected, res)
+  | Failure(error, _, _ ) ->
+    Assert.FailWithMessage(error)
+
+[<Theory>]
 [<InlineData("1 minutes", 6u)>]
 [<InlineData("4 min", 6u)>]
 [<InlineData("12 mins", 12u)>]
@@ -37,29 +60,6 @@ let ``UsernameCommands.pmonths parses months`` (command: string, expected: uint3
   | Failure(error, _, _ ) ->
     Assert.FailWithMessage(error)
         
-[<Theory>]
-[<InlineData("@name", "@name")>]
-[<InlineData("@name  123", "@name")>]
-[<InlineData("@name  @other", "@name")>]
-[<InlineData("@name@other", "@name")>]
-let ``UsernameCommands.pusername parses username`` (command: string, expected: string) =
-  match run UsernameCommands.pusername command with
-  | Success(res, _, _) ->
-    Assert.Equal(expected, res)
-  | Failure(error, _, _ ) ->
-    Assert.FailWithMessage(error)
-        
-[<Theory>]
-[<InlineData("@bot", "@bot")>]
-[<InlineData(" @bot ", "@bot")>]
-[<InlineData("\r\n@bot ", "@bot")>]
-let ``pbotUsername parses bot username`` (command: string, expected: string) =
-  match run (pbotUsername expected) command with
-  | Success(res, _, _) ->
-    Assert.Equal(expected, res)
-  | Failure(error, _, _ ) ->
-    Assert.FailWithMessage(error)
-        
 [<Fact>]
 let ``UsernameCommands.many1Usernames parses one+ usernames``() =
   let command = "@bot @bot2 @bot3 123"
@@ -82,7 +82,7 @@ let ``UsernameCommands.pdistinctTimeFractions parses ban duration`` () =
     Assert.Fail()
         
 [<Fact>]
-let ``pforeverBan parses forever ban as eof`` () =
+let ``UsernameCommands.pforeverBan parses forever ban as eof`` () =
   let command = " \r\n\n\n\r    "
   match run UsernameCommands.pforeverBan command with
   | Success(Forever, _, _) ->
