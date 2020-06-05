@@ -91,8 +91,7 @@ module Program =
                 |> queueIgnore
 
               | None ->
-                if authorizeChat settings (Some newMessage.ChatUsername) then
-                  do! processCommonTextMessage message
+                do! processCommonTextMessage message
 
             | CommandNotAllowed ->
               if authorizeChat settings (Some newMessage.ChatUsername) then

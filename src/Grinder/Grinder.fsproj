@@ -9,9 +9,10 @@
     <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Types.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="Datastore.fs" />
+    <Compile Include="Configuration.fs" />
+    <Compile Include="Updates.fs" />
     <Compile Include="Streams.fs" />
     <Compile Include="Funogram.fs" />
     <Compile Include="Commands.fs" />
