@@ -235,3 +235,29 @@ let ``AdminPrivateCommands.parseCommand parses /remove_chat`` () =
     Assert.Fail()
   | Failure(error, _, _ ) ->
     Assert.FailWithMessage(error)
+
+[<Theory>]
+[<InlineData("")>]
+[<InlineData(" /config ")>]
+[<InlineData("/config ")>]
+[<InlineData("/config 123")>]
+[<InlineData("/help ")>]
+[<InlineData("/help 123")>]
+[<InlineData("/add_admin")>]
+[<InlineData("/add_admin 123")>]
+[<InlineData("/add_admin @")>]
+[<InlineData("/remove_admin")>]
+[<InlineData("/remove_admin 123")>]
+[<InlineData("/remove_admin @")>]
+[<InlineData("/add_chat")>]
+[<InlineData("/add_chat 123")>]
+[<InlineData("/add_chat @")>]
+[<InlineData("/remove_chat")>]
+[<InlineData("/remove_chat 123")>]
+[<InlineData("/remove_chat @")>]
+let ``AdminPrivateCommands.parseCommand parses fails`` (command: string) =
+  match AdminPrivateCommands.runCommandParser command with
+  | Success(_, _, _) ->
+    Assert.Fail()
+  | Failure(error, _, _ ) ->
+    Assert.Success()

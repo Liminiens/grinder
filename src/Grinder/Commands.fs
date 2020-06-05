@@ -189,10 +189,10 @@ module Parser =
   [<RequireQualifiedAccess>]
   module AdminPrivateCommands =
     let pHelpCommand: Parser<AdminPrivateCommand, unit> =
-      str "/help" >>% Help
+      str "/help" >>. eof >>% Help
 
     let pConfigCommand: Parser<AdminPrivateCommand, unit> =
-      str "/config" >>% Config
+      str "/config" >>. eof >>% Config
 
     let pAddAdminCommand: Parser<AdminPrivateCommand, unit> =
       str "/add_admin" .>> spaces >>. pusername |>> AddAdminUser
