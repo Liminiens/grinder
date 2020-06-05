@@ -38,16 +38,70 @@ module Configuration =
   let private botSettings = MVar<BotSettings>()
 
   let setBotConfig config =
-    IVar.fill botConfig config
+    job {
+      do! IVar.fill botConfig config
+      
+      let! users, chats = Datastore.getAdminUsersAndChatsToMonitor()
+
+      let settings = {
+        ChatsToMonitor = Set.ofSeq (config.DefaultChatsToMonitor |> Seq.append chats)
+        AllowedUsers = Set.ofSeq (config.DefaultAllowedUsers |> Seq.append users)
+        ChannelId = config.ChannelId
+        AdminUserId = config.AdminUserId
+      }
+      
+      do! MVar.fill botSettings settings
+    } 
     |> start
 
-    let settings = {
-      ChatsToMonitor = Set.ofArray config.DefaultChatsToMonitor
-      AllowedUsers = Set.ofArray config.DefaultAllowedUsers
-      ChannelId = config.ChannelId
-      AdminUserId = config.AdminUserId
+  let getCurrentSettings() = MVar.read botSettings
+
+  let addAdminUser user =
+    job {
+      let! settings = MVar.read botSettings
+      let! config = IVar.read botConfig
+      let newUsers =
+        config.DefaultAllowedUsers
+        |> Seq.append settings.AllowedUsers
+        |> Seq.append (Seq.singleton user)
+        |> Set.ofSeq
+      let newSettings = { settings with AllowedUsers = newUsers }
+      do! MVar.fill botSettings newSettings
     }
 
-    MVar.fill botSettings settings |> start
-  
-  let getCurrentSettings() = MVar.read botSettings
+  let addChatToMonitor chat =
+    job {
+      let! settings = MVar.read botSettings
+      let! config = IVar.read botConfig
+      let newChats =
+        config.DefaultChatsToMonitor
+        |> Seq.append settings.ChatsToMonitor
+        |> Seq.append (Seq.singleton chat)
+        |> Set.ofSeq
+      let newSettings = { settings with ChatsToMonitor = newChats }
+      do! MVar.fill botSettings newSettings
+    }
+
+  let removeAdminUser user =
+    job {
+      let! settings = MVar.read botSettings
+      let! config = IVar.read botConfig
+      let newUsers =
+        config.DefaultAllowedUsers
+        |> Seq.append (Set.remove user settings.AllowedUsers)
+        |> Set.ofSeq
+      let newSettings = { settings with AllowedUsers = newUsers }
+      do! MVar.fill botSettings newSettings
+    }
+
+  let removeChatToMonitor chat =
+    job {
+      let! settings = MVar.read botSettings
+      let! config = IVar.read botConfig
+      let newChats =
+        config.DefaultChatsToMonitor
+        |> Seq.append (Set.remove chat settings.ChatsToMonitor)
+        |> Set.ofSeq
+      let newSettings = { settings with ChatsToMonitor = newChats }
+      do! MVar.fill botSettings newSettings
+    }

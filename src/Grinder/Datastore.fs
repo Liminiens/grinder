@@ -108,3 +108,11 @@ module Datastore =
     }
     |> Job.forever
     |> queue
+
+  let getAdminUsersAndChatsToMonitor() =
+    job {
+      use context = new DataAccess.GrinderContext()
+      let! chats = context.ChatsToMonitor.AsNoTracking().Select(fun x -> x.Username).ToArrayAsync()
+      let! users = context.AdminUsers.AsNoTracking().Select(fun x -> x.Username).ToArrayAsync()
+      return users, chats
+    }
