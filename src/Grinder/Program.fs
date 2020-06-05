@@ -16,29 +16,6 @@ module Program =
   open System.Net.Http
   open MihaZupan
   open Processing
-
-  [<CLIMutable>]
-  type Socks5Configuration = {
-    Hostname: string
-    Port: int
-    Username: string
-    Password: string
-  }
-
-  [<CLIMutable>]
-  type BotConfig = {
-    Socks5Proxy: Socks5Configuration
-    Token: string
-    ChatsToMonitor: string array
-    AllowedUsers: string array
-    ChannelId: int64
-    AdminUserId: int64
-  }
-  
-  [<CLIMutable>]
-  type Config = {
-    Bot: BotConfig
-  }
   
   let createHttpClient config =
     match config with
@@ -51,7 +28,7 @@ module Program =
     | None ->
       new HttpClient()
   
-  let config =
+  let botConfig =
     ConfigurationBuilder()
       .AddJsonFile("appsettings.json", false, true)
       .AddJsonFile("/etc/grinder/appsettings.json", true, true)
@@ -60,11 +37,11 @@ module Program =
       .Get<Config>()
       .Bot
           
-  let botConfiguration = {
+  let funogramConfig = {
     defaultConfig with
-      Token = config.Token
+      Token = botConfig.Token
       Client = 
-        match (box config.Socks5Proxy) with
+        match (box botConfig.Socks5Proxy) with
         | null ->
           createHttpClient None
 
@@ -73,22 +50,16 @@ module Program =
       AllowedUpdates = ["message"] |> Seq.ofList |> Some
   }
 
-  let settings = {
-    Token = config.Token
-    ChatsToMonitor = ChatsToMonitor config.ChatsToMonitor
-    AllowedUsers = AllowedUsers config.AllowedUsers
-    ChannelId = config.ChannelId
-    AdminUserId = config.AdminUserId
-  }
-
-  let sendTextToChannel text =
-    ApiExt.sendMessage settings.ChannelId botConfiguration text
-
   let updateBox = Mailbox<UpdateContext>()
+
+  let sendTextToChannel channelId text =
+    ApiExt.sendMessage channelId funogramConfig text
 
   let processUpdate context = 
     job {
+      let! settings = Configuration.getCurrentSettings()
       let updateType = UpdateType.fromUpdate settings context.Update
+
       match updateType with
       | Some newMessage ->
         match newMessage with
@@ -116,7 +87,7 @@ module Program =
               | Some message ->
                 message
                 |> formatMessage
-                |> sendTextToChannel
+                |> sendTextToChannel settings.ChannelId
                 |> queueIgnore
 
               | None ->
@@ -143,7 +114,7 @@ module Program =
               | Some message ->
                 message
                 |> formatMessage
-                |> sendTextToChannel
+                |> sendTextToChannel settings.ChannelId
                 |> queueIgnore
 
               | None ->
@@ -175,6 +146,7 @@ module Program =
   let main _ =
     GrinderContext.MigrateUp()
     
+    Configuration.setBotConfig botConfig
     UserStream.setConsumer Datastore.upsertUsers
     MessageStream.setConsumer Datastore.insertMessages
     Datastore.startMessageCleanupJob()
@@ -184,7 +156,7 @@ module Program =
       Mailbox.send updateBox context
       |> queue
 
-    let bot = startBot botConfiguration onUpdate None |> Job.fromAsync |> Job.start
+    let bot = startBot funogramConfig onUpdate None |> Job.fromAsync |> Job.start
       
     printfn "Bot started"
 

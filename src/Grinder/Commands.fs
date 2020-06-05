@@ -256,11 +256,11 @@ module Processing =
   
   let authorize (botSettings: BotSettings) user chat =
     let isAllowedUser username =
-      botSettings.AllowedUsers.Set
+      botSettings.AllowedUsers
       |> Set.contains username
 
     let isAllowedChat chatUsername =
-      botSettings.ChatsToMonitor.Set
+      botSettings.ChatsToMonitor
       |> Set.contains chatUsername
         
     if isAllowedUser user && isAllowedChat chat then    
@@ -493,7 +493,7 @@ module Processing =
        
   let authorizeChat (settings: BotSettings) chatUsername =
     chatUsername
-    |> Option.map settings.ChatsToMonitor.Set.Contains
+    |> Option.map settings.ChatsToMonitor.Contains
     |> Option.defaultValue false
 
   let inline usernameToStringOrNull (username: string option) =
@@ -511,7 +511,7 @@ module Processing =
       text |> (fn >> Result.Error)
         
     let userCanBeBanned username =
-      botSettings.AllowedUsers.Set
+      botSettings.AllowedUsers
       |> Set.contains username
       |> not
 
@@ -567,7 +567,7 @@ module Processing =
 
           return [|
             for userId in userIds do
-              for chat in botSettings.ChatsToMonitor.Set do
+              for chat in botSettings.ChatsToMonitor do
                 yield 
                   ApiExt.banUserByUserId config chat userId context.Until.Value
                   |> Job.map ^ Result.mapError ApiError
@@ -584,7 +584,7 @@ module Processing =
         |> Job.map getErrors
               
       let message = {
-        Chats = botSettings.ChatsToMonitor.Set
+        Chats = botSettings.ChatsToMonitor
         Usernames = context.Usernames
         Until = context.Until
       }
@@ -624,7 +624,7 @@ module Processing =
           |> queue
 
           [|
-            for chat in botSettings.ChatsToMonitor.Set do
+            for chat in botSettings.ChatsToMonitor do
               yield 
                 ApiExt.banUserByUserId config chat context.UserId (DateTime.UtcNow.AddMonths(13))
                 |> Job.map ^ Result.mapError ApiError
@@ -645,7 +645,7 @@ module Processing =
         |> Job.map getErrors
       
       let message = {
-        Chats = botSettings.ChatsToMonitor.Set
+        Chats = botSettings.ChatsToMonitor
         Username = username
         UserId = context.UserId
       }
@@ -658,7 +658,7 @@ module Processing =
       
       let requests = [|
         for username in context.Usernames do
-          for chat in botSettings.ChatsToMonitor.Set do
+          for chat in botSettings.ChatsToMonitor do
             yield 
               ApiExt.unbanUserByUsername config chat username
               |> Job.map ^ Result.mapError ApiError
@@ -674,7 +674,7 @@ module Processing =
         |> Job.map getErrors
       
       let message = {
-        Chats = botSettings.ChatsToMonitor.Set
+        Chats = botSettings.ChatsToMonitor
         Usernames = context.Usernames
       }
       

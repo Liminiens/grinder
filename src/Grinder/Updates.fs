@@ -2,26 +2,6 @@ namespace Grinder.Types
 
 open Funogram.Telegram.Types
 open Grinder
-
-type ChatsToMonitor = 
-  ChatsToMonitor of string array      
-    member __.Set =
-      let (ChatsToMonitor chats) = __
-      chats |> Set.ofArray
-
-type AllowedUsers =
-  AllowedUsers of string array
-    member __.Set =
-      let (AllowedUsers users) = __
-      users |> Set.ofArray
-
-type BotSettings = {
-  Token: string
-  ChatsToMonitor: ChatsToMonitor
-  AllowedUsers: AllowedUsers
-  ChannelId: int64
-  AdminUserId: int64
-}
     
 type ReplyMessage = { Message: Message; ReplyToMessage: Message }
 
