@@ -28,7 +28,7 @@ module Datastore =
     job {
       use context = new GrinderContext()
       let! user =
-        context.Users
+        context.Users.AsNoTracking()
           .FirstOrDefaultAsync(fun u -> u.Username = username.TrimStart('@'))
       return 
         user
@@ -40,7 +40,7 @@ module Datastore =
     job {
       use context = new GrinderContext()
       let! user =
-        context.Users
+        context.Users.AsNoTracking()
           .FirstOrDefaultAsync(fun u -> u.UserId = userId)
       
       return 
@@ -76,7 +76,7 @@ module Datastore =
 
       let! messages = 
         Job.fromTask(fun () ->
-          context.Messages
+          context.Messages.AsNoTracking()
             .Where(fun m -> m.UserId = userId)
             .GroupBy(fun m -> m.ChatId)
             .Select(fun g -> 
@@ -96,7 +96,7 @@ module Datastore =
       use context = new DataAccess.GrinderContext()
       let! toDelete =
         Job.fromTask(fun () ->
-          context.Messages
+          context.Messages.AsNoTracking()
             .Where(fun m -> 
               DateTimeOffset.UtcNow.Subtract(DateTimeOffset.FromUnixTimeMilliseconds(m.Date)).TotalDays > 1.
             )

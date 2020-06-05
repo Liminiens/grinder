@@ -5,6 +5,8 @@ namespace Grinder.DataAccess
 {
   public class Message
   {
+    public long Id { get; set; }
+
     [Required]
     public long MessageId { get; set; }
 

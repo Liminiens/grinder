@@ -8,8 +8,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Grinder.DataAccess.Migrations
 {
     [DbContext(typeof(GrinderContext))]
-    [Migration("20200601205321_MessageIndexes")]
-    partial class MessageIndexes
+    [Migration("20200605194113_Initial")]
+    partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -17,9 +17,33 @@ namespace Grinder.DataAccess.Migrations
             modelBuilder
                 .HasAnnotation("ProductVersion", "3.1.4");
 
+            modelBuilder.Entity("Grinder.DataAccess.AdminUser", b =>
+                {
+                    b.Property<string>("Username")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Username");
+
+                    b.HasIndex("Username");
+
+                    b.ToTable("AdminUsers");
+                });
+
+            modelBuilder.Entity("Grinder.DataAccess.ChatToMonitor", b =>
+                {
+                    b.Property<string>("Username")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Username");
+
+                    b.HasIndex("Username");
+
+                    b.ToTable("ChatsToMonitor");
+                });
+
             modelBuilder.Entity("Grinder.DataAccess.Message", b =>
                 {
-                    b.Property<long>("MessageId")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
@@ -29,10 +53,13 @@ namespace Grinder.DataAccess.Migrations
                     b.Property<long>("Date")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long>("MessageId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long>("UserId")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("MessageId");
+                    b.HasKey("Id");
 
                     b.HasIndex("Date");
 
@@ -44,15 +71,18 @@ namespace Grinder.DataAccess.Migrations
 
             modelBuilder.Entity("Grinder.DataAccess.User", b =>
                 {
-                    b.Property<long>("UserId")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("UserId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.HasKey("UserId");
+                    b.HasKey("Id");
 
                     b.HasIndex("Username", "UserId")
                         .IsUnique();

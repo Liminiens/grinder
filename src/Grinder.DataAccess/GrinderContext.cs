@@ -7,6 +7,8 @@ namespace Grinder.DataAccess
   {
     public DbSet<User> Users { get; set; }
     public DbSet<Message> Messages { get; set; }
+    public DbSet<AdminUser> AdminUsers { get; set; }
+    public DbSet<ChatToMonitor> ChatsToMonitor { get; set; }
 
     public static void MigrateUp()
     {
@@ -29,6 +31,12 @@ namespace Grinder.DataAccess
 
       modelBuilder.Entity<Message>()
           .HasIndex(b => b.Date);
+
+      modelBuilder.Entity<AdminUser>()
+          .HasIndex(b => b.Username);
+
+      modelBuilder.Entity<ChatToMonitor>()
+          .HasIndex(b => b.Username);
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
