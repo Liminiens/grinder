@@ -116,3 +116,39 @@ module Datastore =
       let! users = context.AdminUsers.AsNoTracking().Select(fun x -> x.Username).ToArrayAsync()
       return users, chats
     }
+
+  let addAdminUser user =
+    job {
+      use context = new DataAccess.GrinderContext()
+      let _ = context.AdminUsers.Add(new AdminUser(Username = user))
+      do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
+    }
+
+  let addChatToMonitor user =
+    job {
+      use context = new DataAccess.GrinderContext()
+      let _ = context.ChatsToMonitor.Add(new ChatToMonitor(Username = user))
+      do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
+    }
+
+  let removeAdminUser user =
+    job {
+      use context = new DataAccess.GrinderContext()
+      let! userFromDb = context.AdminUsers.AsNoTracking().FirstOrDefaultAsync(fun u -> u.Username = user)
+      match userFromDb with
+      | null -> ()
+      | userFromDb ->
+        let _ = context.AdminUsers.Remove(userFromDb)
+        do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
+    }
+
+  let removeChatToMonitor chat =
+    job {
+      use context = new DataAccess.GrinderContext()
+      let! chatFromDb = context.ChatsToMonitor.AsNoTracking().FirstOrDefaultAsync(fun u -> u.Username = chat)
+      match chatFromDb with
+      | null -> ()
+      | chatFromDb ->
+        let _ = context.ChatsToMonitor.Remove(chatFromDb)
+        do! Job.fromTask (fun () -> context.SaveChangesAsync()) |> Job.Ignore
+    }
