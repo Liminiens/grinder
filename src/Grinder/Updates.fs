@@ -17,7 +17,7 @@ type UpdateType =
 module UpdateType =
   let fromUpdate (settings: BotSettings) (update: Update) =
     update.Message
-    |> Option.map ^ fun message ->
+    |> Option.map (fun message ->
       if message.Chat.Id = settings.AdminUserId then
         match message.Document, message.Text with
         | Some document, None ->
@@ -32,7 +32,7 @@ module UpdateType =
           |> Option.filter (fun entities ->
             //code block
             entities
-            |> Seq.exists ^ fun e -> e.Type = "code" && e.Offset = 0L
+            |> Seq.exists (fun e -> e.Type = "code" && e.Offset = 0L)
           )
           |> Option.isSome
 
@@ -60,3 +60,4 @@ module UpdateType =
 
             | None ->
               IgnoreMessage
+    )
