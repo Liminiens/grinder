@@ -5,11 +5,11 @@ open Xunit
 
 [<RequireQualifiedAccess>]    
 module Assert =
-  let Fail() = Assert.True(false)
+  let inline Fail() = Assert.True(false)
   
-  let FailWithMessage text = Assert.True(false, text)
+  let inline FailWithMessage text = Assert.True(false, text)
   
-  let Success() = Assert.True(true)
+  let inline Success() = Assert.True(true)
     
 [<AutoOpen>]
 module Funogram =
@@ -32,9 +32,8 @@ module App =
       ChatUsername = String.Empty }
       
   let createSettings chats users = {
-    Token = String.Empty
-    ChatsToMonitor = ChatsToMonitor chats
-    AllowedUsers = AllowedUsers users
+    ChatsToMonitor = Set.ofSeq chats
+    AllowedUsers = Set.ofSeq users
     ChannelId = 123L
     AdminUserId = 123L
   }

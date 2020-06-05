@@ -229,7 +229,7 @@ let ``AdminPrivateCommands.parseCommand parses /add_chat`` () =
 [<Fact>]
 let ``AdminPrivateCommands.parseCommand parses /remove_chat`` () =
   match AdminPrivateCommands.runCommandParser "/remove_chat @chat" with
-  | Success(AdminPrivateCommand.AddChat(username), _, _) ->
+  | Success(AdminPrivateCommand.RemoveChat(username), _, _) ->
     Assert.Equal("@chat", username)
   | Success(_, _, _) ->
     Assert.Fail()
