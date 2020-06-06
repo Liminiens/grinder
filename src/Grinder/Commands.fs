@@ -14,15 +14,22 @@ module Parser =
 
   type ParserError = string
 
-  let str s = pstring s
-  
-  let pbotUsername botUsername : Parser<string, unit> =
-    spaces >>. (str botUsername) .>> spaces
+  let inline str s = pstring s
         
   let pusername: Parser<string, unit> =
     let validate char =
       (not <| Char.IsWhiteSpace(char)) && char <> '@'
-    pipe2 (str "@") (manySatisfy validate) (+)
+
+    let notUnderscoreOrDigit c = c <> '_' && not (Char.IsDigit(c))
+
+    pipe2 
+      (str "@") 
+      (lookAhead (anyString 5) >>. 
+       many1Chars2 (satisfy notUnderscoreOrDigit) (satisfy validate)) 
+      (+)
+
+  let pbotUsername botUsername : Parser<string, unit> =
+    spaces >>. (str botUsername) .>> spaces
 
   type Usernames = Usernames of string array
   

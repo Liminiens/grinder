@@ -6,16 +6,28 @@ open Grinder.Commands.Parser
 open FParsec
     
 [<Theory>]
-[<InlineData("@name", "@name")>]
-[<InlineData("@name  123", "@name")>]
-[<InlineData("@name  @other", "@name")>]
-[<InlineData("@name@other", "@name")>]
+[<InlineData("@name123", "@name123")>]
+[<InlineData("@name_123  123", "@name_123")>]
+[<InlineData("@ab123  @other", "@ab123")>]
+[<InlineData("@name123@other", "@name123")>]
 let ``pusername parses username`` (command: string, expected: string) =
   match run pusername command with
   | Success(res, _, _) ->
     Assert.Equal(expected, res)
   | Failure(error, _, _ ) ->
     Assert.FailWithMessage(error)
+
+[<Theory>]
+[<InlineData("@_12345")>]
+[<InlineData("@12345")>]
+[<InlineData("@")>]
+[<InlineData("@name")>]
+let ``pusername fails`` (command: string) =
+  match run pusername command with
+  | Success(_, _, _) ->
+    Assert.Fail()
+  | Failure(error, _, _ ) ->
+    Assert.Success()
 
 [<Theory>]
 [<InlineData("@bot", "@bot")>]
@@ -62,10 +74,10 @@ let ``UsernameCommands.pmonths parses months`` (command: string, expected: uint3
         
 [<Fact>]
 let ``UsernameCommands.many1Usernames parses one+ usernames``() =
-  let command = "@bot @bot2 @bot3 123"
+  let command = "@bot123 @bot231 @bot321 123"
   match run UsernameCommands.many1Usernames command with
   | Success(res, _, _) ->
-    Assert.Equal<string seq>(res, ["@bot"; "@bot2"; "@bot3"])
+    Assert.Equal<string seq>(res, ["@bot123"; "@bot231"; "@bot321"])
   | Failure(error, _, _ ) ->
     Assert.FailWithMessage(error)
 
@@ -198,9 +210,9 @@ let ``AdminPrivateCommands.parseCommand parses /help`` () =
 
 [<Fact>]
 let ``AdminPrivateCommands.parseCommand parses /add_admin`` () =
-  match AdminPrivateCommands.runCommandParser "/add_admin @user" with
+  match AdminPrivateCommands.runCommandParser "/add_admin @user1" with
   | Success(AdminPrivateCommand.AddAdminUser(username), _, _) ->
-    Assert.Equal("@user", username)
+    Assert.Equal("@user1", username)
   | Success(_, _, _) ->
     Assert.Fail()
   | Failure(error, _, _ ) ->
@@ -208,9 +220,9 @@ let ``AdminPrivateCommands.parseCommand parses /add_admin`` () =
 
 [<Fact>]
 let ``AdminPrivateCommands.parseCommand parses /remove_admin`` () =
-  match AdminPrivateCommands.runCommandParser "/remove_admin @user" with
+  match AdminPrivateCommands.runCommandParser "/remove_admin @user1" with
   | Success(AdminPrivateCommand.RemoveAdminUser(username), _, _) ->
-    Assert.Equal("@user", username)
+    Assert.Equal("@user1", username)
   | Success(_, _, _) ->
     Assert.Fail()
   | Failure(error, _, _ ) ->
@@ -218,9 +230,9 @@ let ``AdminPrivateCommands.parseCommand parses /remove_admin`` () =
 
 [<Fact>]
 let ``AdminPrivateCommands.parseCommand parses /add_chat`` () =
-  match AdminPrivateCommands.runCommandParser "/add_chat @chat" with
+  match AdminPrivateCommands.runCommandParser "/add_chat @chat1" with
   | Success(AdminPrivateCommand.AddChat(username), _, _) ->
-    Assert.Equal("@chat", username)
+    Assert.Equal("@chat1", username)
   | Success(_, _, _) ->
     Assert.Fail()
   | Failure(error, _, _ ) ->
@@ -228,9 +240,9 @@ let ``AdminPrivateCommands.parseCommand parses /add_chat`` () =
 
 [<Fact>]
 let ``AdminPrivateCommands.parseCommand parses /remove_chat`` () =
-  match AdminPrivateCommands.runCommandParser "/remove_chat @chat" with
+  match AdminPrivateCommands.runCommandParser "/remove_chat @chat1" with
   | Success(AdminPrivateCommand.RemoveChat(username), _, _) ->
-    Assert.Equal("@chat", username)
+    Assert.Equal("@chat1", username)
   | Success(_, _, _) ->
     Assert.Fail()
   | Failure(error, _, _ ) ->
