@@ -33,6 +33,8 @@ module Parser =
 
   type Usernames = Usernames of string array
   
+  type UserIds = UserIds of int64 array
+  
   type TimeFraction =
     | Minutes of uint32
     | Days of uint32
@@ -78,7 +80,9 @@ module Parser =
     | UsernameBan of BanDuration
     | UsernameUnban
   
-  type BotUsernameCommand = Usernames * BotUsernameCommandAction
+  type BotUsernameCommand = 
+    | ActOnUsernames of Usernames * BotUsernameCommandAction
+    | ActOnUserids of UserIds * BotUsernameCommandAction
 
   type BotUsernameCommandParsingResult =
     | BotUsernameCommandResult of BotUsernameCommand
@@ -156,7 +160,7 @@ module Parser =
     let parseCommand botUsername =
       pbotUsername botUsername >>.
       pipe2 many1Usernames pcommandAction (fun usernames command -> 
-        BotUsernameCommand(Usernames(Array.ofList usernames), command)
+        ActOnUsernames(Usernames(Array.ofList usernames), command)
       )
         
     let runCommandParser botUsername text: ParserResult<BotUsernameCommand, unit> =
@@ -370,7 +374,7 @@ module Processing =
     Username: string option
   }
 
-  type BanCommandContext = {
+  type UsernamesBanCommandContext = {
     From: string
     MessageId: int64
     ChatId: int64
@@ -378,17 +382,25 @@ module Processing =
     Until: BanDuration
   }
   
-  type UnbanCommandContext = {
+  type UsernamesUnbanCommandContext = {
     From: string
     MessageId: int64
     ChatId: int64
     Usernames: string array
   }
   
+  type UserIdsUnbanCommandContext = {
+    From: string
+    MessageId: int64
+    ChatId: int64
+    UserIds: int64 array
+  }
+
   type Command =
-    | BanCommand of BanCommandContext
+    | UsernamesBanCommand of UsernamesBanCommandContext
+    | UsernamesUnbanCommand of UsernamesUnbanCommandContext
+    | UserIdsUnbanCommand of UserIdsUnbanCommandContext
     | BanOnReplyCommand of ActionOnReplyCommandContext
-    | UnbanCommand of UnbanCommandContext
     | DoNothingCommand
   
   type CommandError =
@@ -412,7 +424,7 @@ module Processing =
                 
         sprintf "Banned %i (%s) in chats %s forever" this.UserId this.Username chatsText
   
-  type BanMessage =
+  type UsernamesBanMessage =
     { Usernames: string array
       Chats: Set<string>
       Until: BanDuration }
@@ -435,7 +447,7 @@ module Processing =
                 
         sprintf "Banned %s in chats %s %s" usernamesText chatsText durationText
               
-  type UnbanMessage =
+  type UsernamesUnbanMessage =
     { Usernames: string seq
       Chats: string seq }
     
@@ -451,10 +463,29 @@ module Processing =
 
         sprintf "Unbanned %s in chats %s" usernamesText chatsText
   
+  type UserIdsUnbanMessage =
+    { UserIds: int64 seq
+      Chats: string seq }
+    
+    interface IMessage with
+      member this.FormatAsString() =
+        let usernamesText =
+          this.UserIds
+          |> Seq.map string
+          |> String.concat ", "
+            
+        let chatsText =
+          this.Chats
+          |> String.concat ", "
+
+        sprintf "Unbanned %s in chats %s" usernamesText chatsText
+  
+
   type CommandMessage = 
-    | BanMessage of string * BanMessage * CommandError array
+    | UsernamesBanMessage of string * UsernamesBanMessage * CommandError array
+    | UsernamesUnbanMessage of string * UsernamesUnbanMessage * CommandError array
+    | UserIdsUnbanMessage of string * UserIdsUnbanMessage * CommandError array
     | BanOnReplyMessage of string * BanOnReplyMessage * CommandError array
-    | UnbanMessage of string * UnbanMessage * CommandError array
       
   let parseReplyMessage (context: ReplyToMessageContext): Command =
     match ReplyCommands.parse context.BotUsername context.MessageText with
@@ -476,7 +507,7 @@ module Processing =
                           
   let parseTextMessage (context: TextMessageContext): Command =
     match Parser.UsernameCommands.parse context.BotUsername context.MessageText with
-    | BotUsernameCommandResult((Usernames usernames), UsernameBan(duration)) ->
+    | BotUsernameCommandResult(ActOnUsernames((Usernames usernames), UsernameBan(duration))) ->
       let context = {
         From = context.FromUsername
         MessageId = context.Message.MessageId
@@ -484,16 +515,25 @@ module Processing =
         Usernames = usernames
         Until = duration
       }
-      BanCommand context
+      UsernamesBanCommand context
 
-    | BotUsernameCommandResult((Usernames usernames), UsernameUnban) ->
+    | BotUsernameCommandResult(ActOnUsernames((Usernames usernames), UsernameUnban)) ->
       let context = {
         From = context.FromUsername
         MessageId = context.Message.MessageId
         ChatId = context.Message.Chat.Id
         Usernames = usernames
       }
-      UnbanCommand context
+      UsernamesUnbanCommand context
+
+    | BotUsernameCommandResult(ActOnUserids((UserIds userIds), UsernameUnban)) ->
+      let context = {
+        From = context.FromUsername
+        MessageId = context.Message.MessageId
+        ChatId = context.Message.Chat.Id
+        UserIds = userIds
+      }
+      UserIdsUnbanCommand context
 
     | InvalidBotUsernameCommand _ ->
       DoNothingCommand
@@ -530,15 +570,15 @@ module Processing =
           |> Seq.collect(fun chat ->
             chat.Messages
             |> Seq.map(fun message ->
-              ApiExt.deleteMessageWithRetry config chat.ChatId message.MessageId
+              ApiExt.deleteMessage config chat.ChatId message.MessageId
             )
           )
           |> Job.conIgnore
       }
 
     match command with
-    | BanCommand context ->
-      ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
+    | UsernamesBanCommand context ->
+      ApiExt.deleteMessage config context.ChatId context.MessageId 
       |> queueIgnore
       
       let! requests = 
@@ -596,10 +636,10 @@ module Processing =
         Until = context.Until
       }
       
-      return Some <| BanMessage(context.From, message, errors)
+      return Some <| UsernamesBanMessage(context.From, message, errors)
 
     | BanOnReplyCommand context ->
-      ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
+      ApiExt.deleteMessage config context.ChatId context.MessageId 
       |> queueIgnore
       
       do
@@ -624,7 +664,7 @@ module Processing =
 
       let requests =
         if userCanBeBanned username then
-          ApiExt.deleteMessageWithRetry config context.ChatId context.ReplyToMessageId 
+          ApiExt.deleteMessage config context.ChatId context.ReplyToMessageId 
           |> queueIgnore
 
           deleteThreeMessagesInChats context.UserId
@@ -659,8 +699,36 @@ module Processing =
       
       return Some <| BanOnReplyMessage(context.From, message, errors)
 
-    | UnbanCommand context ->
-      ApiExt.deleteMessageWithRetry config context.ChatId context.MessageId 
+    | UserIdsUnbanCommand context ->
+      ApiExt.deleteMessage config context.ChatId context.MessageId 
+      |> queueIgnore
+      
+      let requests = [|
+        for userId in context.UserIds do
+          for chat in botSettings.ChatsToMonitor do
+            yield 
+              ApiExt.unbanUser config chat userId
+              |> Job.map ^ Result.mapError ApiError
+          
+            yield 
+              ApiExt.unrestictUser config chat userId
+              |> Job.map ^ Result.mapError ApiError
+      |]
+
+      let! errors =
+        requests
+        |> Job.conCollect
+        |> Job.map getErrors
+      
+      let message = {
+        Chats = botSettings.ChatsToMonitor
+        UserIds = context.UserIds
+      }
+      
+      return Some <| UserIdsUnbanMessage(context.From, message, errors)
+
+    | UsernamesUnbanCommand context ->
+      ApiExt.deleteMessage config context.ChatId context.MessageId 
       |> queueIgnore
       
       let requests = [|
@@ -685,7 +753,7 @@ module Processing =
         Usernames = context.Usernames
       }
       
-      return Some <| UnbanMessage(context.From, message, errors)
+      return Some <| UsernamesUnbanMessage(context.From, message, errors)
 
     | DoNothingCommand ->
       return None
@@ -771,11 +839,14 @@ module Processing =
       sprintf "%s command from: @%s\n\n%s" commandName username (message.FormatAsString())
         
     function
-    | BanMessage(fromUsername, message, errors) ->
+    | UsernamesBanMessage(fromUsername, message, errors) ->
       sprintf "%s%s" (formatHeader "Ban" fromUsername message) (concatErrors errors)
 
-    | UnbanMessage(fromUsername, message, errors) ->
-      sprintf "%s%s" (formatHeader "Unban" fromUsername message) (concatErrors errors)
+    | UsernamesUnbanMessage(fromUsername, message, errors) ->
+      sprintf "%s%s" (formatHeader "Unban by usernames" fromUsername message) (concatErrors errors)
+      
+    | UserIdsUnbanMessage(fromUsername, message, errors) ->
+      sprintf "%s%s" (formatHeader "Unban by userids" fromUsername message) (concatErrors errors)
 
     | BanOnReplyMessage(fromUsername, message, errors) ->
       sprintf "%s%s" (formatHeader "Ban on reply" fromUsername message) (concatErrors errors)

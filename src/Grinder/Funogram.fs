@@ -62,11 +62,11 @@ module ApiExt =
     let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds
     { ChatId = (ChatId.String chatName); UserId = userId; UntilDate = seconds }
 
-  let banUserByUserId context chat userId until = 
+  let banUserByUserId config chat userId until = 
     job {
       let! restrictResult =  
         kickChatMemberByChatNameUntilExt chat userId until
-        |> callApiWithDefaultRetry context
+        |> callApiWithDefaultRetry config
       match restrictResult with
       | Ok _ ->
         return Ok ()
@@ -74,13 +74,25 @@ module ApiExt =
         return Error <| sprintf "Failed to ban %i in chat %s. Description: %s" userId chat e.Description
     }
           
-  let unbanUserByUsername context chat username = 
+  let unbanUser config chat userId =
+    job {
+      let req = 
+        unbanChatMemberByChatNameExt chat userId
+        |> callApiWithDefaultRetry config
+      match! req with
+      | Ok _ -> 
+        return Ok()
+      | Error e ->
+        return Error <| sprintf "Failed to unban %i in chat %s. Description: %s" userId chat e.Description
+    }
+
+  let unbanUserByUsername config chat username = 
     job {
       match! Datastore.findUserIdByUsername username with
       | UserIdFound userId ->
         let! unbanResult = 
           unbanChatMemberByChatNameExt chat userId
-          |> callApiWithDefaultRetry context
+          |> callApiWithDefaultRetry config
         match unbanResult with
         | Ok _ ->
           return Ok ()
@@ -90,13 +102,25 @@ module ApiExt =
         return Error <| sprintf "Couldn't resolve username %s" username
     }
   
-  let unrestrictUserByUsername context chat username = 
+  let unrestictUser config chat userId =
+    job {
+      let req = 
+        restrictChatMemberBase (ChatId.String chat) userId unrestrictPermissions None
+        |> callApiWithDefaultRetry config
+      match! req with
+      | Ok _ -> 
+        return Ok()
+      | Error e ->
+        return Error <| sprintf "Failed to unrestrict %i in chat %s. Description: %s" userId chat e.Description
+    }
+
+  let unrestrictUserByUsername config chat username = 
     job {
       match! Datastore.findUserIdByUsername username with
       | UserIdFound userId ->
         let! restrictResult = 
           restrictChatMemberBase (ChatId.String chat) userId unrestrictPermissions None
-          |> callApiWithDefaultRetry context
+          |> callApiWithDefaultRetry config
         match restrictResult with
         | Ok _ ->
           return Ok ()
@@ -131,6 +155,6 @@ module ApiExt =
     }
     |> retry 2
 
-  let deleteMessageWithRetry config chatId messageId =
+  let deleteMessage config chatId messageId =
     Api.deleteMessage chatId messageId
     |> callApiWithDefaultRetry config

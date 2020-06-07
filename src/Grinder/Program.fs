@@ -97,7 +97,7 @@ module Program =
               if authorizeChat settings (Some newMessage.ChatUsername) then
                 do! processCommonTextMessage message
               
-              ApiExt.deleteMessageWithRetry context.Config newMessage.Message.Chat.Id newMessage.Message.MessageId
+              ApiExt.deleteMessage context.Config newMessage.Message.Chat.Id newMessage.Message.MessageId
               |> queueIgnore
 
           | None ->
@@ -123,7 +123,7 @@ module Program =
               if authorizeChat settings reply.Message.Chat.Username then
                 do! processCommonTextMessage reply.Message
 
-              ApiExt.deleteMessageWithRetry context.Config reply.Message.Chat.Id reply.Message.MessageId
+              ApiExt.deleteMessage context.Config reply.Message.Chat.Id reply.Message.MessageId
               |> queueIgnore
 
           | None ->
