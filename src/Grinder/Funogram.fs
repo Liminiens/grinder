@@ -61,6 +61,10 @@ module ApiExt =
   let kickChatMemberByChatNameUntilExt chatName userId (untilDate: DateTime): KickChatMemberReqExt =
     let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds
     { ChatId = (ChatId.String chatName); UserId = userId; UntilDate = seconds }
+  
+  let sendMessage config chat text =
+    sendMessage chat text
+    |> callApiWithDefaultRetry config
 
   let banUserByUserId config chat userId until = 
     job {
@@ -130,10 +134,6 @@ module ApiExt =
       | UserIdNotFound ->
         return Error <| sprintf "Couldn't resolve username %s" username
     }
-  
-  let sendMessage (chatId: int64) context text =
-    sendMessageBase (ChatId.Int chatId) text None None None None None
-    |> callApiWithDefaultRetry context
       
   let prepareAndDownloadFile config fileId =
     job {

@@ -556,6 +556,62 @@ module Processing =
     | Some u -> u
     | None -> null
 
+  let parseAndExecutePrivateCommand config (botSettings: BotSettings) chatId text = job {
+    match AdminPrivateCommands.parse text with
+    | AdminPrivateCommandResult(Config) ->
+      let settingsJson = Newtonsoft.Json.JsonConvert.SerializeObject(botSettings)
+      let message = sprintf "```\n%s\n```" settingsJson
+      do! ApiExt.sendMessage config chatId message |> Job.Ignore
+
+    | InvalidAdminPrivateCommand _
+    | AdminPrivateCommandResult(Help) ->
+      let message = 
+        "/help - returns this message\n
+        /config - returns current bot config\n
+        /add_admin username-without-@ - adds user to admins\n
+        /remove_admin username-without-@ - removes user from admins\n
+        /add_chat username-with-@ - adds chat to monitor messages from\n
+        /remove_chat username-with-@ - removes chat from monitoring\n
+        "
+      do! ApiExt.sendMessage config chatId message |> Job.Ignore
+
+    | AdminPrivateCommandResult(AddAdminUser username) ->
+      do! 
+        Datastore.addAdminUser username
+        |> Job.bind (fun () -> Configuration.addAdminUser username)
+        |> Job.bind (fun () -> 
+          ApiExt.sendMessage config chatId (sprintf "added admin %s" username)
+          |> Job.Ignore
+        )
+
+    | AdminPrivateCommandResult(RemoveAdminUser username) ->
+      do! 
+        Datastore.removeAdminUser username
+        |> Job.bind (fun () -> Configuration.removeAdminUser username)
+        |> Job.bind (fun () -> 
+          ApiExt.sendMessage config chatId (sprintf "removed admin %s" username)
+          |> Job.Ignore
+        )
+
+    | AdminPrivateCommandResult(AddChat username) ->
+      do! 
+        Datastore.addChatToMonitor username
+        |> Job.bind (fun () -> Configuration.addChatToMonitor username)
+        |> Job.bind (fun () -> 
+          ApiExt.sendMessage config chatId (sprintf "added chat %s" username)
+          |> Job.Ignore
+        )
+
+    | AdminPrivateCommandResult(RemoveChat username) ->
+      do! 
+        Datastore.removeChatToMonitor username
+        |> Job.bind (fun () -> Configuration.removeChatToMonitor username)
+        |> Job.bind (fun () -> 
+          ApiExt.sendMessage config chatId (sprintf "removed chat %s" username)
+          |> Job.Ignore
+        )
+  }
+
   let executeCommand config (botSettings: BotSettings) command: Job<CommandMessage option> = job {
     let getErrors results =
       results
@@ -802,17 +858,17 @@ module Processing =
             |> Job.seqIgnore
 
           return!
-            ApiExt.sendMessage botSettings.ChannelId config "Updated user database"
+            ApiExt.sendMessage config botSettings.ChannelId "Updated user database"
             |> Job.Ignore
 
         with e ->
           return!
-            ApiExt.sendMessage botSettings.ChannelId config (e.ToString())
+            ApiExt.sendMessage config botSettings.ChannelId (e.ToString())
             |> Job.Ignore
 
       | Error e ->
         return!
-          ApiExt.sendMessage botSettings.ChannelId config e
+          ApiExt.sendMessage config botSettings.ChannelId e
           |> Job.Ignore
     }
   

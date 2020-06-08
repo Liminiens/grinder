@@ -53,7 +53,7 @@ module Program =
   let updateBox = Mailbox<UpdateContext>()
 
   let sendTextToChannel channelId text =
-    ApiExt.sendMessage channelId funogramConfig text
+    ApiExt.sendMessage funogramConfig channelId text
 
   let processUpdate context = 
     job {
@@ -63,6 +63,9 @@ module Program =
       match updateType with
       | Some newMessage ->
         match newMessage with
+        | NewAdminPrivateMessage(chatId, text) ->
+          do! parseAndExecutePrivateCommand context.Config settings chatId text
+
         | NewAdminUsersFileMessage(chatId, document) ->
           match document.FileName, document.MimeType with
           | Some name, Some mimeType when name.StartsWith("users_export") && mimeType = "application/json" ->
