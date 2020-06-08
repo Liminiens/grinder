@@ -21,8 +21,8 @@ type Socks5Configuration = {
 type BotConfig = {
   Socks5Proxy: Socks5Configuration
   Token: string
-  DefaultChatsToMonitor: string array
-  DefaultAllowedUsers: string array
+  ChatsToMonitor: string array
+  AllowedUsers: string array
   ChannelId: int64
   AdminUserId: int64
 }
@@ -44,8 +44,8 @@ module Configuration =
       let! users, chats = Datastore.getAdminUsersAndChatsToMonitor()
 
       let settings = {
-        ChatsToMonitor = Set.ofSeq (config.DefaultChatsToMonitor |> Seq.append chats)
-        AllowedUsers = Set.ofSeq (config.DefaultAllowedUsers |> Seq.append users)
+        ChatsToMonitor = Set.ofSeq (config.ChatsToMonitor |> Seq.append chats)
+        AllowedUsers = Set.ofSeq (config.AllowedUsers |> Seq.append users)
         ChannelId = config.ChannelId
         AdminUserId = config.AdminUserId
       }
@@ -61,7 +61,7 @@ module Configuration =
       let! settings = MVar.read botSettings
       let! config = IVar.read botConfig
       let newUsers =
-        config.DefaultAllowedUsers
+        config.AllowedUsers
         |> Seq.append settings.AllowedUsers
         |> Seq.append (Seq.singleton user)
         |> Set.ofSeq
@@ -74,7 +74,7 @@ module Configuration =
       let! settings = MVar.read botSettings
       let! config = IVar.read botConfig
       let newChats =
-        config.DefaultChatsToMonitor
+        config.ChatsToMonitor
         |> Seq.append settings.ChatsToMonitor
         |> Seq.append (Seq.singleton chat)
         |> Set.ofSeq
@@ -87,7 +87,7 @@ module Configuration =
       let! settings = MVar.read botSettings
       let! config = IVar.read botConfig
       let newUsers =
-        config.DefaultAllowedUsers
+        config.AllowedUsers
         |> Seq.append (Set.remove user settings.AllowedUsers)
         |> Set.ofSeq
       let newSettings = { settings with AllowedUsers = newUsers }
@@ -99,7 +99,7 @@ module Configuration =
       let! settings = MVar.read botSettings
       let! config = IVar.read botConfig
       let newChats =
-        config.DefaultChatsToMonitor
+        config.ChatsToMonitor
         |> Seq.append (Set.remove chat settings.ChatsToMonitor)
         |> Set.ofSeq
       let newSettings = { settings with ChatsToMonitor = newChats }
