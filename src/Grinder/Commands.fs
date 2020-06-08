@@ -77,8 +77,8 @@ module Parser =
         value <- value.AddMonths(int32 months)
 
   type BotUsernameCommandAction =
-    | UsernameBan of BanDuration
-    | UsernameUnban
+    | BotUsernameBan of BanDuration
+    | BotUsernameUnban
   
   type BotUsernameCommand = 
     | ActOnUsernames of Usernames * BotUsernameCommandAction
@@ -121,6 +121,9 @@ module Parser =
     
     let many1Usernames: Parser<string list, unit> =
       many1 (pusername .>> spaces)
+
+    let many1UserIds: Parser<int64 list, unit> =
+      many1 (pint64 .>> spaces)
     
     let sumTimedFractions (fractions: TimeFraction seq) =
       let summator = TimeFractionSummator()
@@ -152,16 +155,21 @@ module Parser =
       str "ban" .>> spaces >>. (pforeverBan <|> pdistinctTimeFractions)
     
     let punban: Parser<BotUsernameCommandAction, unit> =
-      str "unban" .>> spaces >>% UsernameUnban
+      str "unban" .>> spaces >>% BotUsernameUnban
         
     let pcommandAction: Parser<BotUsernameCommandAction, unit> =
-      (pban |>> UsernameBan) <|> punban
+      (pban |>> BotUsernameBan) <|> punban
     
     let parseCommand botUsername =
       pbotUsername botUsername >>.
-      pipe2 many1Usernames pcommandAction (fun usernames command -> 
-        ActOnUsernames(Usernames(Array.ofList usernames), command)
-      )
+      choice [
+        pipe2 many1Usernames pcommandAction (fun usernames command -> 
+          ActOnUsernames(Usernames(Array.ofList usernames), command)
+        )
+        pipe2 many1UserIds pcommandAction (fun userIds command -> 
+          ActOnUserids(UserIds(Array.ofList userIds), command)
+        )
+      ]
         
     let runCommandParser botUsername text: ParserResult<BotUsernameCommand, unit> =
       run (parseCommand botUsername) text
@@ -507,7 +515,7 @@ module Processing =
                           
   let parseTextMessage (context: TextMessageContext): Command =
     match Parser.UsernameCommands.parse context.BotUsername context.MessageText with
-    | BotUsernameCommandResult(ActOnUsernames((Usernames usernames), UsernameBan(duration))) ->
+    | BotUsernameCommandResult(ActOnUsernames((Usernames usernames), BotUsernameBan(duration))) ->
       let context = {
         From = context.FromUsername
         MessageId = context.Message.MessageId
@@ -517,7 +525,7 @@ module Processing =
       }
       UsernamesBanCommand context
 
-    | BotUsernameCommandResult(ActOnUsernames((Usernames usernames), UsernameUnban)) ->
+    | BotUsernameCommandResult(ActOnUsernames((Usernames usernames), BotUsernameUnban)) ->
       let context = {
         From = context.FromUsername
         MessageId = context.Message.MessageId
@@ -526,7 +534,7 @@ module Processing =
       }
       UsernamesUnbanCommand context
 
-    | BotUsernameCommandResult(ActOnUserids((UserIds userIds), UsernameUnban)) ->
+    | BotUsernameCommandResult(ActOnUserids((UserIds userIds), BotUsernameUnban)) ->
       let context = {
         From = context.FromUsername
         MessageId = context.Message.MessageId

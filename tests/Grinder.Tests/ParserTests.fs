@@ -121,7 +121,7 @@ let ``UsernameCommands.pforeverBan parses forever ban as forever text`` () =
 [<InlineData(" \n\r \n@bot @first @second ban 1 day 12 months")>]
 let ``UsernameCommands.parseCommand returns correct command for ban`` (command) =
   match run (UsernameCommands.parseCommand "@bot") command with
-  | Success((Usernames(usernames), UsernameBan(Timed(duration))), _, _) ->
+  | Success(ActOnUsernames(Usernames(usernames), BotUsernameBan(Timed(duration))), _, _) ->
     let time = DateTime.UtcNow.AddMonths(12).AddDays(1.)
     Assert.Equal(time.ToString("yyyyMMddTHH:mm"), duration.ToString("yyyyMMddTHH:mm"))
     Assert.Equal<string seq>(["@first"; "@second"], usernames)
@@ -137,7 +137,7 @@ let ``UsernameCommands.parseCommand returns correct command for ban`` (command) 
 [<InlineData("@bot @first @second ban\r\n\n")>]
 let ``UsernameCommands.parseCommand returns correct command for forever ban`` (command: string) =
   match run (UsernameCommands.parseCommand "@bot") command with
-  | Success((Usernames(usernames), UsernameBan(Forever)), _, _) ->
+  | Success(ActOnUsernames(Usernames(usernames), BotUsernameBan(Forever)), _, _) ->
     Assert.Equal<string seq>(["@first"; "@second"], usernames)
   | Failure(error, _, _ ) ->
     Assert.FailWithMessage(error)
@@ -145,11 +145,22 @@ let ``UsernameCommands.parseCommand returns correct command for forever ban`` (c
     Assert.Fail()
  
 [<Fact>]
-let ``UsernameCommands.parseCommand returns correct command for unban`` () =
+let ``UsernameCommands.parseCommand returns correct command for usernames unban`` () =
   let command = "@bot @first @second unban"
   match run (UsernameCommands.parseCommand "@bot") command with
-  | Success((Usernames(usernames), UsernameUnban), _, _) ->
+  | Success(ActOnUsernames(Usernames(usernames), BotUsernameUnban), _, _) ->
     Assert.Equal<string seq>(["@first"; "@second"], usernames)
+  | Failure(error, _, _ ) ->
+    Assert.FailWithMessage(error)
+  | _ ->
+    Assert.Fail()
+
+[<Fact>]
+let ``UsernameCommands.parseCommand returns correct command for userids unban`` () =
+  let command = "@bot 123 321 unban"
+  match run (UsernameCommands.parseCommand "@bot") command with
+  | Success(ActOnUserids(UserIds(userIds), BotUsernameUnban), _, _) ->
+    Assert.Equal<int64 seq>([123L; 321L], userIds)
   | Failure(error, _, _ ) ->
     Assert.FailWithMessage(error)
   | _ ->

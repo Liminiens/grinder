@@ -358,7 +358,7 @@ let ``UnbanMessage FormatAsString returns correct message``() =
   Assert.Equal(expected, messageText)
     
 [<Fact>]
-let ``formatMessage returns correct message for ban message``() = async {
+let ``formatMessage returns correct message for usernames ban message``() = async {
   let message = {
     Usernames = [|"@user1"; "@user2"|]
     Until = DateTime(2017,1,1,2,2,2) |> Timed
@@ -367,7 +367,7 @@ let ``formatMessage returns correct message for ban message``() = async {
   
   let expected = "Ban command from: @user\n\nBanned @user1, @user2 in chats @chat1, @chat2 until 2017-01-01 02:02:02 UTC\n\nApi error"
   
-  let commandMessage = BanMessage("user", message, [|ApiError("Api error")|])
+  let commandMessage = UsernamesBanMessage("user", message, [|ApiError("Api error")|])
   
   Assert.Equal(expected, formatMessage commandMessage)
 }
@@ -403,15 +403,29 @@ let ``formatMessage returns correct message for ban on reply message without err
 }
 
 [<Fact>]
-let ``formatMessage returns correct message for unban``() = async {
+let ``formatMessage returns correct message for usernames unban message``() = async {
   let message = {
     Usernames = [|"@user1"; "@user2"|]
     Chats = Set.ofSeq ["@chat1"; "@chat2"]
   }
   
-  let expected = "Unban command from: @user\n\nUnbanned @user1, @user2 in chats @chat1, @chat2"
+  let expected = "Unban by usernames command from: @user\n\nUnbanned @user1, @user2 in chats @chat1, @chat2"
   
-  let commandMessage = UnbanMessage("user", message, [||])
+  let commandMessage = UsernamesUnbanMessage("user", message, [||])
+  
+  Assert.Equal(expected, formatMessage commandMessage)
+}
+
+[<Fact>]
+let ``formatMessage returns correct message for userids unban message``() = async {
+  let message = {
+    UserIds = [|123L; 321L|]
+    Chats = Set.ofSeq ["@chat1"; "@chat2"]
+  }
+  
+  let expected = "Unban by userids command from: @user\n\nUnbanned 123, 321 in chats @chat1, @chat2"
+  
+  let commandMessage = UserIdsUnbanMessage("user", message, [||])
   
   Assert.Equal(expected, formatMessage commandMessage)
 }
