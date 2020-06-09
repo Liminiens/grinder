@@ -282,7 +282,7 @@ module Processing =
         Usernames: UserUsername seq
     }
 
-    type PingReplyContext = {
+    type PingContext = {
         ChatId: TelegramChatId
     }
 
@@ -291,7 +291,7 @@ module Processing =
         | BanOnReplyCommand of ActionOnReplyCommandContext
         | UnbanCommand of UnbanCommandContext
         | UnbanOnReplyCommand of ActionOnReplyCommandContext
-        | PingCommand of PingReplyContext
+        | PingCommand of PingContext
         | DoNothingCommand
     
     type CommandError =
