@@ -9,5 +9,6 @@ Microsoft.Extensions.Configuration.Abstractions
 Microsoft.Extensions.Configuration.Binder
 Microsoft.Extensions.Configuration.EnvironmentVariables
 Microsoft.Extensions.Configuration.Json
+Microsoft.Azure.AppConfiguration.AspNetCore
 Newtonsoft.Json
 FSharp.Control.AsyncSeq

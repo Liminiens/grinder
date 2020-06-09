@@ -24,3 +24,4 @@ nuget Microsoft.Extensions.Configuration.Abstractions 3.1.4
 nuget Microsoft.Extensions.Configuration.Binder 3.1.4
 nuget Microsoft.Extensions.Configuration.EnvironmentVariables 3.1.4
 nuget Microsoft.Extensions.Configuration.Json 3.1.4
+nuget Microsoft.Azure.AppConfiguration.AspNetCore 3.0.1

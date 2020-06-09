@@ -1,6 +1,7 @@
 ﻿namespace Grinder
 
 open Hopac
+open System.Net
 open Microsoft.Extensions.Configuration
 open Grinder
 open Grinder.DataAccess
@@ -11,28 +12,33 @@ open Funogram.Telegram
 open Funogram.Telegram.Bot
 open Funogram.Types
 open FunogramExt
+open System
     
 module Program =
   open System.Net.Http
   open MihaZupan
   open Processing
   
-  let createHttpClient config =
-    match config with
-    | Some config ->
-      let messageHandler = new HttpClientHandler()
+  let createHttpClient (config: Socks5Configuration) =
+    let messageHandler = new HttpClientHandler()
+    if not (isNull (box config)) then
       messageHandler.Proxy <- HttpToSocks5Proxy(config.Hostname, config.Port, config.Username, config.Password)
       messageHandler.UseProxy <- true
-      new HttpClient(messageHandler)
-
-    | None ->
-      new HttpClient()
+    new HttpClient(messageHandler)
   
   let botConfig =
-    ConfigurationBuilder()
-      .AddJsonFile("appsettings.json", false, true)
-      .AddJsonFile("/etc/grinder/appsettings.json", true, true)
-      .AddEnvironmentVariables("Grinder_")
+    let mutable configBuilder =
+      ConfigurationBuilder()
+        .AddJsonFile("appsettings.json", false, true)
+        .AddJsonFile("/etc/grinder/appsettings.json", true, true)
+        .AddEnvironmentVariables("Grinder_")
+          
+    match Environment.GetEnvironmentVariable("DOTNETRU_APP_CONFIG") with
+    | null -> ()
+    | connString ->
+       configBuilder <- configBuilder.AddAzureAppConfiguration connString
+         
+    configBuilder
       .Build()
       .Get<Config>()
       .Bot
@@ -40,17 +46,9 @@ module Program =
   let funogramConfig = {
     defaultConfig with
       Token = botConfig.Token
-      Client = 
-        match (box botConfig.Socks5Proxy) with
-        | null ->
-          createHttpClient None
-
-        | proxy -> 
-          createHttpClient (Some (proxy :?> Socks5Configuration))
+      Client = createHttpClient botConfig.Socks5Proxy
       AllowedUpdates = ["message"] |> Seq.ofList |> Some
   }
-
-  let updateBox = Mailbox<UpdateContext>()
 
   let sendTextToChannel channelId text =
     ApiExt.sendMessage funogramConfig channelId text
@@ -144,6 +142,20 @@ module Program =
       | None -> ()
     } |> queue
 
+  let startAzureHealthcheckJob() =
+    let buffer = System.Text.Encoding.UTF8.GetBytes "OK"
+    let listener = new HttpListener()
+    listener.Prefixes.Add("http://*:80/")
+    listener.Start()
+    job {
+      let! ctx = listener.GetContextAsync()
+      let output = ctx.Response.OutputStream
+      output.Write(buffer, 0, buffer.Length)
+      output.Close()
+    }
+    |> Job.forever
+    |> queue
+
   [<EntryPoint>]
   let main _ =
     GrinderContext.MigrateUp()
@@ -154,19 +166,13 @@ module Program =
     Datastore.startMessageCleanupJob()
 
     printfn "Starting bot"
-    let onUpdate context =
-      Mailbox.send updateBox context
-      |> queue
 
-    startBot funogramConfig onUpdate None |> Job.fromAsync |> queue
+    startBot funogramConfig processUpdate None |> Job.fromAsync |> queue
       
     printfn "Bot started"
 
-    Mailbox.take updateBox
-    |> Job.map processUpdate
-    |> Job.forever
-    |> queue
-
-    System.Console.ReadKey() |> ignore
+    startAzureHealthcheckJob()
+    
+    Console.ReadKey() |> ignore
     printfn "Bot exited"
     0 // return an integer exit code

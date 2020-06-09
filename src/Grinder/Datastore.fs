@@ -5,7 +5,6 @@ open Hopac
 open Microsoft.EntityFrameworkCore
 open Grinder.DataAccess
 open System.Linq
-open FSharp.Control
     
 type FindUserIdByUsernameResult =
   | UserIdNotFound

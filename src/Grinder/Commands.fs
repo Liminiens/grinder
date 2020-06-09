@@ -83,6 +83,7 @@ module Parser =
   type BotUsernameCommand = 
     | ActOnUsernames of Usernames * BotUsernameCommandAction
     | ActOnUserids of UserIds * BotUsernameCommandAction
+    | Ping
 
   type BotUsernameCommandParsingResult =
     | BotUsernameCommandResult of BotUsernameCommand
@@ -151,18 +152,23 @@ module Parser =
       |> Seq.map attempt
       |> choice
     
-    let pban: Parser<BanDuration, unit> =
+    let pban: Parser<BotUsernameCommandAction, unit> =
       str "ban" .>> spaces >>. (pforeverBan <|> pdistinctTimeFractions)
+      |>> BotUsernameBan
     
     let punban: Parser<BotUsernameCommandAction, unit> =
       str "unban" .>> spaces >>% BotUsernameUnban
         
+    let pping: Parser<BotUsernameCommand, unit> =
+      str "ping" >>% Ping
+        
     let pcommandAction: Parser<BotUsernameCommandAction, unit> =
-      (pban |>> BotUsernameBan) <|> punban
+        pban <|> punban
     
     let parseCommand botUsername =
       pbotUsername botUsername >>.
       choice [
+        pping
         pipe2 many1Usernames pcommandAction (fun usernames command -> 
           ActOnUsernames(Usernames(Array.ofList usernames), command)
         )
@@ -404,11 +410,16 @@ module Processing =
     UserIds: int64 array
   }
 
+  type PingContext = {
+    ChatId: int64
+  }
+
   type Command =
     | UsernamesBanCommand of UsernamesBanCommandContext
     | UsernamesUnbanCommand of UsernamesUnbanCommandContext
     | UserIdsUnbanCommand of UserIdsUnbanCommandContext
     | BanOnReplyCommand of ActionOnReplyCommandContext
+    | PingCommand of PingContext
     | DoNothingCommand
   
   type CommandError =
@@ -533,6 +544,9 @@ module Processing =
         Usernames = usernames
       }
       UsernamesUnbanCommand context
+
+    | BotUsernameCommandResult(Ping) ->
+      PingCommand { ChatId = context.Message.Chat.Id }
 
     | BotUsernameCommandResult(ActOnUserids((UserIds userIds), BotUsernameUnban)) ->
       let context = {
@@ -818,6 +832,10 @@ module Processing =
       }
       
       return Some <| UsernamesUnbanMessage(context.From, message, errors)
+
+    | PingCommand context ->
+      do! ApiExt.sendMessage config context.ChatId "pong" |> Job.Ignore
+      return None
 
     | DoNothingCommand ->
       return None

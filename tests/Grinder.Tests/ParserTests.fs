@@ -143,9 +143,20 @@ let ``UsernameCommands.parseCommand returns correct command for forever ban`` (c
     Assert.FailWithMessage(error)
   | _ ->
     Assert.Fail()
+
+[<Fact>]
+let ``UsernameCommands.parseCommand returns correct command for ping`` () =
+  let command = "@bot ping"
+  match run (UsernameCommands.parseCommand "@bot") command with
+  | Success(Ping, _, _) ->
+    Assert.Success()
+  | Failure(error, _, _ ) ->
+    Assert.FailWithMessage(error)
+  | _ ->
+    Assert.Fail()
  
 [<Fact>]
-let ``UsernameCommands.parseCommand returns correct command for usernames unban`` () =
+let ``UsernameCommands.parseCommand returns correct command for unban`` () =
   let command = "@bot @first @second unban"
   match run (UsernameCommands.parseCommand "@bot") command with
   | Success(ActOnUsernames(Usernames(usernames), BotUsernameUnban), _, _) ->
