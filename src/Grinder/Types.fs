@@ -97,4 +97,5 @@ type IBotApi =
     abstract member UnbanUser: ChatUsername -> UserUsername -> Async<Result<unit, string>>
     abstract member UnrestrictUser: ChatUsername -> UserUsername -> Async<Result<unit, string>>
     abstract member SendTextToChannel: string -> Async<unit>
+    abstract member SendTextMessage: TelegramChatId -> string -> Async<unit>
     abstract member PrepareAndDownloadFile: string -> Async<Result<Stream, string>>
