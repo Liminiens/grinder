@@ -282,12 +282,16 @@ module Processing =
         Usernames: UserUsername seq
     }
 
+    type PingReplyContext = {
+        ChatId: TelegramChatId
+    }
+
     type Command =
         | BanCommand of BanCommandContext
         | BanOnReplyCommand of ActionOnReplyCommandContext
         | UnbanCommand of UnbanCommandContext
         | UnbanOnReplyCommand of ActionOnReplyCommandContext
-        | PingCommand
+        | PingCommand of PingReplyContext
         | DoNothingCommand
     
     type CommandError =
@@ -407,7 +411,7 @@ module Processing =
             }
             UnbanCommand context
         | BotCommand(Ping) ->
-            PingCommand
+            PingCommand { ChatId = %context.Message.Chat.Id }
         | InvalidCommand _ ->
             DoNothingCommand
                 
@@ -547,8 +551,8 @@ module Processing =
             }
             
             return Some <| UnbanOnReplyMessage(context.From, message, errors)
-        | PingCommand ->
-            do! botApi.SendTextToChannel "pong"
+        | PingCommand context ->
+            do! botApi.SendTextMessage context.ChatId "pong"
             return None
         | DoNothingCommand ->
             return None
