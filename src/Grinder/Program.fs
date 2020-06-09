@@ -158,7 +158,7 @@ module Program =
       Mailbox.send updateBox context
       |> queue
 
-    let bot = startBot funogramConfig onUpdate None |> Job.fromAsync |> Job.start
+    startBot funogramConfig onUpdate None |> Job.fromAsync |> queue
       
     printfn "Bot started"
 

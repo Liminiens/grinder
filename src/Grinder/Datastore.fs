@@ -104,7 +104,7 @@ module Datastore =
         )
       context.Messages.RemoveRange(toDelete)
       do! Job.fromTask(fun () -> context.SaveChangesAsync()) |> Job.Ignore
-      do! timeOut (TimeSpan.FromDays(1.))
+      do! timeOut (TimeSpan.FromDays(14.))
     }
     |> Job.forever
     |> queue
