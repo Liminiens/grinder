@@ -56,7 +56,9 @@ module Parser =
         | Ban of BanDuration
         | Unban
 
-    type Command = Command of Usernames * CommandAction
+    type Command =
+        | UserCommand of Usernames * CommandAction
+        | Ping
 
     let str s = pstring s
         
@@ -107,18 +109,22 @@ module Parser =
         |> List.map attempt
         |> choice
     
-    let pban: Parser<BanDuration, unit> =
+    let pban: Parser<CommandAction, unit> =
         str "ban" .>> spaces >>. (pforeverBan <|> pdistinctTimeFractions)
+        |>> Ban
 
     let punban: Parser<CommandAction, unit> =
         str "unban" .>> spaces >>% Unban
         
+    let pping: Parser<Command, unit> =
+        str "ping" >>% Ping
+        
     let pcommandAction: Parser<CommandAction, unit> =
-        (pban |>> Ban) <|> punban
+        pban <|> punban
 
     let parseCommand botUsername =
         pbotUsername botUsername >>.
-        pipe2 many1Usernames pcommandAction (fun usernames command -> Command(Usernames(usernames), command))
+        (pping <|> pipe2 many1Usernames pcommandAction (fun usernames command -> UserCommand(Usernames(usernames), command)))
         
     let runCommandParser botUsername str: ParserResult<Command, unit> =
         run (parseCommand botUsername) str
@@ -275,12 +281,13 @@ module Processing =
         ChatId: TelegramChatId
         Usernames: UserUsername seq
     }
-    
+
     type Command =
         | BanCommand of BanCommandContext
         | BanOnReplyCommand of ActionOnReplyCommandContext
         | UnbanCommand of UnbanCommandContext
         | UnbanOnReplyCommand of ActionOnReplyCommandContext
+        | PingCommand
         | DoNothingCommand
     
     type CommandError =
@@ -374,7 +381,7 @@ module Processing =
                             
     let parseTextMessage (context: TextMessageContext): Command =
         match Parser.parse %context.BotUsername context.MessageText with
-        | BotCommand(Command((Usernames usernames), Ban(duration))) ->
+        | BotCommand(UserCommand((Usernames usernames), Ban(duration))) ->
             let usernames =
                 usernames
                 |> Seq.map ^ fun username -> %username
@@ -387,7 +394,7 @@ module Processing =
                 Until = duration
             }
             BanCommand context
-        | BotCommand(Command((Usernames usernames), Unban)) ->
+        | BotCommand(UserCommand((Usernames usernames), Unban)) ->
             let usernames =
                 usernames
                 |> Seq.map ^ fun username -> %username
@@ -399,6 +406,8 @@ module Processing =
                 Usernames = usernames
             }
             UnbanCommand context
+        | BotCommand(Ping) ->
+            PingCommand
         | InvalidCommand _ ->
             DoNothingCommand
                 
@@ -538,6 +547,9 @@ module Processing =
             }
             
             return Some <| UnbanOnReplyMessage(context.From, message, errors)
+        | PingCommand ->
+            do! botApi.SendTextToChannel "pong"
+            return None
         | DoNothingCommand ->
             return None
     }
