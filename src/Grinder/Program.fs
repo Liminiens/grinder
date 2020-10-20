@@ -36,6 +36,7 @@ module Program =
         AllowedUsers: string array
         ChannelId: int64
         AdminUserId: int64
+        ListenEndpoint: string
     }
     
     [<CLIMutable>]
@@ -174,7 +175,7 @@ module Program =
         
         // Needed for azure web app deploy check. We have to response with anything on port 80
         use listener = new HttpListener()
-        listener.Prefixes.Add("http://*:80/")
+        listener.Prefixes.Add(config.ListenEndpoint)
         listener.Start()
         
         let buffer = System.Text.Encoding.UTF8.GetBytes "OK"
