@@ -28,7 +28,7 @@ module Datastore =
             use context = new GrinderContext()
             let! user =
                 context.Users
-                    .FirstOrDefaultAsync(fun u -> u.Username = username.TrimStart('@'))
+                    .FirstOrDefaultAsync(fun u -> u.Username.ToLower() = username.TrimStart('@').ToLower())
             return user
                    |> Option.ofObj
                    |> Option.fold (fun _ u -> UserIdFound u.UserId) UserIdNotFound
