@@ -1,5 +1,6 @@
 namespace Grinder
 
+open System
 open FSharp.Control.Tasks.V2
 open Microsoft.EntityFrameworkCore
 open Grinder.DataAccess
@@ -28,7 +29,7 @@ module Datastore =
             use context = new GrinderContext()
             let! user =
                 context.Users
-                    .FirstOrDefaultAsync(fun u -> u.Username.ToLower() = username.TrimStart('@').ToLower())
+                    .FirstOrDefaultAsync(fun u -> u.Username.Equals(username.TrimStart('@'), StringComparison.InvariantCultureIgnoreCase))
             return user
                    |> Option.ofObj
                    |> Option.fold (fun _ u -> UserIdFound u.UserId) UserIdNotFound
