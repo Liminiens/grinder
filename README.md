@@ -64,6 +64,7 @@ You can choose two ways to configure grinder but keep in mind about configuratio
         "Token": "test",
         "ChannelId": 111,
         "AdminUserId": 123,
+        "RunAzureWebServer": true,
         "Socks5Proxy": {
             "Hostname": "Hostme",
             "Port": 1337,
@@ -71,8 +72,8 @@ You can choose two ways to configure grinder but keep in mind about configuratio
             "Password": "Secrete"
         },
         "ChatsToMonitor": [
-            "Sample",
-            "Text"
+            "@Sample",
+            "@Text"
         ],
         "AllowedUsers": [
             "Pasha",
@@ -102,8 +103,8 @@ Grinder_Bot__AllowedUsers__0=Pasha
 Grinder_Bot__AllowedUsers__1=Technique
 
 #ChatsToMonitor - chats where bot will read messages and replies
-Grinder_Bot__ChatsToMonitor__0=Sample
-Grinder_Bot__ChatsToMonitor__1=Text
+Grinder_Bot__ChatsToMonitor__0=@Sample
+Grinder_Bot__ChatsToMonitor__1=@Text
 
 #AdminUserId - telegram user id who will be able to send private messages to bot
 Grinder_Bot__AdminUserId=123
