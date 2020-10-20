@@ -36,7 +36,7 @@ module Program =
         AllowedUsers: string array
         ChannelId: int64
         AdminUserId: int64
-        RunAzureWebServer: bool
+        DisableAzureWebServer: bool
     }
     
     [<CLIMutable>]
@@ -173,7 +173,7 @@ module Program =
 
         printfn "Bot started"
         
-        if config.RunAzureWebServer then
+        if not config.DisableAzureWebServer then
             // Needed for azure web app deploy check. We have to response with anything on port 80
             use listener = new HttpListener()
             listener.Prefixes.Add("http://*:80/")
