@@ -36,7 +36,6 @@ module Program =
         AllowedUsers: string array
         ChannelId: int64
         AdminUserId: int64
-        DisableAzureWebServer: bool
     }
     
     [<CLIMutable>]
@@ -173,21 +172,18 @@ module Program =
 
         printfn "Bot started"
         
-        if not config.DisableAzureWebServer then
-            // Needed for azure web app deploy check. We have to response with anything on port 80
-            use listener = new HttpListener()
-            listener.Prefixes.Add("http://*:80/")
-            listener.Start()
-            
-            let buffer = System.Text.Encoding.UTF8.GetBytes "OK"
-            
-            while true do
-                let ctx = listener.GetContext()
-                let output = ctx.Response.OutputStream
-                output.Write(buffer, 0, buffer.Length)
-                output.Close()
-        else
-            Console.ReadLine () |> ignore
+        // Needed for azure web app deploy check. We have to response with anything on port 80
+        use listener = new HttpListener()
+        listener.Prefixes.Add("http://*:80/")
+        listener.Start()
+        
+        let buffer = System.Text.Encoding.UTF8.GetBytes "OK"
+        
+        while true do
+            let ctx = listener.GetContext()
+            let output = ctx.Response.OutputStream
+            output.Write(buffer, 0, buffer.Length)
+            output.Close();
         
         printfn "Bot exited"
         0 // return an integer exit code
