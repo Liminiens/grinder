@@ -6,9 +6,11 @@ Telegram bot for chats administration.
 
 ## Configuration and build
 
-Just open project with Rider/VS 2019 and run build
+- Install Net5 SDK
 
-or use dotnet cli
+- Open project with Rider/VS 2019 and run build
+
+- or use dotnet cli
 
 ```bash
 dotnet build

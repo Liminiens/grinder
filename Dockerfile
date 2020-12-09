@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:3.1 AS build-dotnet
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build-dotnet
 WORKDIR /app
 # Copy csproj and restore as distinct layers
 COPY *.sln ./
@@ -20,7 +20,7 @@ RUN dotnet test -c Release -r linux-x64 -o out --no-restore --verbosity normal
 RUN dotnet publish -r linux-x64 -c Release -o out
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/runtime:3.1
+FROM mcr.microsoft.com/dotnet/runtime:5.0
 
 EXPOSE 80
 
