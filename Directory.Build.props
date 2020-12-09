@@ -1,0 +1,10 @@
+﻿<Project>
+    <PropertyGroup>
+        <TargetFramework>net5</TargetFramework>
+        <ServerGarbageCollection>false</ServerGarbageCollection>
+        <TieredCompilation>true</TieredCompilation>
+        <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+        <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
+        <LangVersion>preview</LangVersion>
+    </PropertyGroup>
+</Project>
