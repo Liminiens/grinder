@@ -1,25 +1,19 @@
-name: .NET Core
+name: Build & Test
 
 on:
   push:
     branches: [ master ]
+    paths-ignore:
+      - "**.md"
   pull_request:
     branches: [ master ]
+    paths-ignore:
+      - "**.md"
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 3.1.300
-    - name: Restore tools
-      run: dotnet tool restore
-    - name: Build
-      run: dotnet build -c Release
-    - name: Test
-      run: dotnet test -c Release --no-restore --verbosity normal
+    - name: Build & Test 
+      run: docker build .
