@@ -157,10 +157,10 @@ module Program =
                         do! processNewUsersCommand users
                         
                     | NewMessage message ->
-                        sprintf "Received: New message in chat %s from %A "
+                        sprintf "Received: New message in chat %s from %s"
                             (defaultArg message.Chat.Title "Unknown")
-                            message.From
-                        |> logInfo
+                            (defaultArg (message.From |> Option.bind(fun x -> x.Username)) "")
+                        |> logDbg
                         
                         match prepareTextMessage context.Me.Username message with
                         | Some newMessage ->
@@ -175,7 +175,7 @@ module Program =
                                     newMessage.MessageText
                                     newMessage.FromUsername
                                     newMessage.ChatUsername
-                                |> logInfo
+                                |> logDbg
                         | None ->
                             sprintf "Skipping message %A from %A" message context.Me.Username
                             |> logDbg
@@ -199,7 +199,7 @@ module Program =
                                     replyMessage.MessageText
                                     replyMessage.FromUsername
                                     replyMessage.ChatUsername
-                                |> logInfo
+                                |> logDbg
                         | None ->
                             sprintf "Skipping message %A from %A" reply context.Me.Username
                             |> logDbg
