@@ -64,13 +64,13 @@ let updateAuthorizationState (dialer: Dialer) (authLock: AutoResetEvent) (state:
                 |> Task.Ignore
                 
         | :? TdApi.AuthorizationState.AuthorizationStateWaitPhoneNumber ->
-            printfn "Enter phone"
+            Console.WriteLine "Enter phone"
             let phone = Console.ReadLine()
             do! dialer.ExecuteAsync(new TdApi.SetAuthenticationPhoneNumber(PhoneNumber = phone))
                 |> Task.Ignore
                 
         | :? TdApi.AuthorizationState.AuthorizationStateWaitCode ->
-            printfn "Enter code"
+            Console.WriteLine "Enter code"
             let code = Console.ReadLine()
             do! dialer.ExecuteAsync(new TdApi.CheckAuthenticationCode(Code = code))
                 |> Task.Ignore
@@ -143,7 +143,7 @@ let main argv =
             dialer.ExecuteAsync(new TdApi.GetChats(Limit = 200, OffsetOrder = Int64.MaxValue))
             |> Async.AwaitTask
         
-        printfn "Starting export of usernames"
+        Console.WriteLine "Starting export of usernames"
         let! users =
             chats.ChatIds
             |> AsyncSeq.ofSeq
@@ -175,6 +175,6 @@ let main argv =
         |> JsonConvert.SerializeObject 
         |> stream.Write
 
-        printfn "Finished export of usernames"
+        Console.WriteLine "Finished export of usernames"
     } |> Async.RunSynchronously
     0 // return an integer exit code
