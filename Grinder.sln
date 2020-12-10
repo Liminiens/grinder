@@ -17,8 +17,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CI", "CI", "{25990364-33CE-
 ProjectSection(SolutionItems) = preProject
 	docker-compose.yml = docker-compose.yml
 	Dockerfile = Dockerfile
-	azure-pipelines.yml = azure-pipelines.yml
-	x86.Dockerfile = x86.Dockerfile
 EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{3AB38C70-1DF4-48D9-992B-B7BFBFDDFD7A}"
