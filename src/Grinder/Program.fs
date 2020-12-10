@@ -158,7 +158,7 @@ module Program =
                         
                     | NewMessage message ->
                         sprintf "Received: New message in chat %s from %s"
-                            (defaultArg message.Chat.Title "Unknown")
+                            (defaultArg message.Chat.Title "")
                             (defaultArg (message.From |> Option.bind(fun x -> x.Username)) "")
                         |> logDbg
                         
@@ -182,9 +182,9 @@ module Program =
                         
                     | NewReplyMessage reply ->
                         sprintf "Received: New reply message in chat %s from %A"
-                            (defaultArg reply.Message.Chat.Title "Unknown")
-                            (reply.Message.From)
-                        |> logInfo
+                            (defaultArg reply.Message.Chat.Title "")
+                            (defaultArg (reply.Message.From |> Option.bind(fun x -> x.Username)) "")
+                        |> logDbg
                         
                         match prepareReplyToMessage context.Me.Username reply with
                         | Some replyMessage ->
