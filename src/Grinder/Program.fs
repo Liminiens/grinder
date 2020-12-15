@@ -251,7 +251,7 @@ module Program =
             ChannelId = %config.ChannelId
             AdminUserId = %config.AdminUserId
         }
-        
+
         string { botConfiguration with Token = "***" }
         |> sprintf "Bot Configuration %A"
         |> logInfo
