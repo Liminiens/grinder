@@ -109,7 +109,7 @@ let ``pforeverBan parses forever ban as forever text`` () =
 [<InlineData(" \n\r \n@bot @first @second ban 1 day 12 months")>]
 let ``parseCommand returns correct command for ban`` (command) =
     match run (parseCommand "@bot") command with
-    | Success(Command(Usernames(usernames), Ban(Timed(duration))), _, _) ->
+    | Success(UserCommand(Usernames(usernames), Ban(Timed(duration))), _, _) ->
         let time = DateTime.UtcNow.AddMonths(12).AddDays(1.)
         Assert.Equal(time.ToString("yyyyMMddTHH:mm"), duration.ToString("yyyyMMddTHH:mm"))
         Assert.Equal<string seq>(["@first"; "@second"], usernames)
@@ -125,8 +125,19 @@ let ``parseCommand returns correct command for ban`` (command) =
 [<InlineData("@bot @first @second ban\r\n\n")>]
 let ``parseCommand returns correct command for forever ban`` (command: string) =
     match run (parseCommand "@bot") command with
-    | Success(Command(Usernames(usernames), Ban(Forever)), _, _) ->
+    | Success(UserCommand(Usernames(usernames), Ban(Forever)), _, _) ->
         Assert.Equal<string seq>(["@first"; "@second"], usernames)
+    | Failure(error, _, _ ) ->
+        Assert.FailWithMessage(error)
+    | _ ->
+        Assert.Fail()
+
+[<Fact>]
+let ``parseCommand returns correct command for ping`` () =
+    let command = "@bot ping"
+    match run (parseCommand "@bot") command with
+    | Success(Ping, _, _) ->
+        Assert.Success()
     | Failure(error, _, _ ) ->
         Assert.FailWithMessage(error)
     | _ ->
@@ -136,7 +147,7 @@ let ``parseCommand returns correct command for forever ban`` (command: string) =
 let ``parseCommand returns correct command for unban`` () =
     let command = "@bot @first @second unban"
     match run (parseCommand "@bot") command with
-    | Success(Command(Usernames(usernames), Unban), _, _) ->
+    | Success(UserCommand(Usernames(usernames), Unban), _, _) ->
         Assert.Equal<string seq>(["@first"; "@second"], usernames)
     | Failure(error, _, _ ) ->
         Assert.FailWithMessage(error)

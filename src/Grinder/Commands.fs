@@ -282,12 +282,16 @@ module Processing =
         Usernames: UserUsername seq
     }
 
+    type PingContext = {
+        ChatId: TelegramChatId
+    }
+
     type Command =
         | BanCommand of BanCommandContext
         | BanOnReplyCommand of ActionOnReplyCommandContext
         | UnbanCommand of UnbanCommandContext
         | UnbanOnReplyCommand of ActionOnReplyCommandContext
-        | PingCommand
+        | PingCommand of PingContext
         | DoNothingCommand
     
     type CommandError =
@@ -407,7 +411,7 @@ module Processing =
             }
             UnbanCommand context
         | BotCommand(Ping) ->
-            PingCommand
+            PingCommand { ChatId = %context.Message.Chat.Id }
         | InvalidCommand _ ->
             DoNothingCommand
                 
@@ -424,6 +428,12 @@ module Processing =
             botSettings.AllowedUsers.Set
             |> Set.contains username
             |> not
+            
+        let logErrors =
+            Seq.iter (function
+                | ApiError str
+                | AdminBanNotAllowedError str -> logErr str
+            )
         
         match command with
         | BanCommand context ->
@@ -434,8 +444,12 @@ module Processing =
                     if userCanBeBanned user then
                         for chat in botSettings.ChatsToMonitor.Set do
                             yield botApi.BanUserByUsername chat user context.Until.Value
-                                  |> Async.Map ^ fun result ->
-                                      Result.mapError ApiError result
+                                  |> Async.Map ^ Result.mapError
+                                          (sprintf "Error on baning user %A in chat %A until %A. %s"
+                                               user
+                                               chat
+                                               context.Until.Value
+                                           >> ApiError)
                     else
                         yield sprintf "Cannot ban admin @%s" %user
                               |> createCommandError AdminBanNotAllowedError
@@ -445,6 +459,8 @@ module Processing =
                 requests
                 |> Async.Parallel
                 |> Async.Map getErrors
+                
+            logErrors errors
                     
             let message = {
                 Chats = botSettings.ChatsToMonitor.Set
@@ -472,9 +488,14 @@ module Processing =
             let requests =
                 if userCanBeBanned username then
                     [for chat in botSettings.ChatsToMonitor.Set do
-                        yield botApi.BanUserByUserId chat context.UserId (DateTime.UtcNow.AddMonths(13))
-                              |> Async.Map ^ fun result ->
-                                    Result.mapError ApiError result]
+                        let until = DateTime.UtcNow.AddMonths(13)
+                        yield botApi.BanUserByUserId chat context.UserId until
+                              |> Async.Map ^ Result.mapError
+                                          (sprintf "Error on baning userId %A in chat %A until %A. %s"
+                                               context.UserId
+                                               chat
+                                               until
+                                           >> ApiError)]
                 else
                     [sprintf "Cannot ban admin %s" %username
                      |> createCommandError AdminBanNotAllowedError
@@ -484,6 +505,8 @@ module Processing =
                 requests
                 |> Async.Parallel
                 |> Async.Map getErrors
+                
+            logErrors errors
             
             let message = {
                 Chats = botSettings.ChatsToMonitor.Set
@@ -499,15 +522,23 @@ module Processing =
                 [for user in context.Usernames do
                     for chat in botSettings.ChatsToMonitor.Set do
                         yield botApi.UnbanUser chat user
-                              |> Async.Map ^ fun result ->
-                                  Result.mapError ApiError result
+                              |> Async.Map ^ Result.mapError
+                                          (sprintf "Error on unbaning user %A in chat %A. %s"
+                                               user
+                                               chat
+                                           >> ApiError)
                         yield botApi.UnrestrictUser chat user
-                              |> Async.Map ^ fun result ->
-                                  Result.mapError ApiError result]
+                              |> Async.Map ^ Result.mapError
+                                          (sprintf "Error on unrestricting user %A in chat %A. %s"
+                                               user
+                                               chat
+                                           >> ApiError)]
             let! errors =
                 requests
                 |> Async.Parallel
                 |> Async.Map getErrors
+            
+            logErrors errors
             
             let message = {
                 Chats = botSettings.ChatsToMonitor.Set
@@ -533,13 +564,18 @@ module Processing =
             let requests =
                 [for chat in botSettings.ChatsToMonitor.Set do
                     yield botApi.UnbanUser chat username
-                    |> Async.Map ^ fun result ->
-                       Result.mapError ApiError result]
+                    |> Async.Map ^ Result.mapError
+                          (sprintf "Error on unban user %A in chat %A. %s"
+                               username
+                               chat
+                           >> ApiError)]
                     
             let! errors =
                 requests
                 |> Async.Parallel
                 |> Async.Map getErrors
+            
+            logErrors errors
             
             let message = {
                 Chats = botSettings.ChatsToMonitor.Set
@@ -547,10 +583,13 @@ module Processing =
             }
             
             return Some <| UnbanOnReplyMessage(context.From, message, errors)
-        | PingCommand ->
-            do! botApi.SendTextToChannel "pong"
+        | PingCommand context ->
+            sprintf "Sending PONG to %A" context.ChatId
+            |> logInfo
+            do! botApi.SendTextMessage context.ChatId "pong"
             return None
         | DoNothingCommand ->
+            logDbg "Do Nothing Command has been successfully processed and we haven't done anything remotely useful"
             return None
     }
     
@@ -569,7 +608,12 @@ module Processing =
             do! Datastore.upsertUsers users
             do! "Updated user database"
                 |> ApiExt.sendMessage botSettings.ChannelId config
+            sprintf "Successfully processed admin command for fileId %s" fileId
+            |> logInfo
+            
         | Error e ->
+            sprintf "Error on processing admin command with fileId: %s. Error: %s" fileId e
+            |> logErr
             do! ApiExt.sendMessage botSettings.ChannelId config e
     }
     

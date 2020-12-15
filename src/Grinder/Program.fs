@@ -1,7 +1,6 @@
 ﻿namespace Grinder
 
 open System.Net
-open System.Threading
 open Microsoft.Extensions.Configuration
 open Funogram
 open Grinder
@@ -13,6 +12,7 @@ open Funogram.Bot
 open Funogram.Types
 open FunogramExt
 open System
+open Serilog
     
 module Program =
     open System.Net.Http
@@ -52,27 +52,69 @@ module Program =
    
     let createBotApi config (settings: BotSettings) = {
         new IBotApi with
-            member __.DeleteMessage chatId messageId =
+            member __.DeleteMessage chatId messageId: Async<unit> =
+                sprintf "Deleting message %A in chat %A" messageId chatId
+                |> logInfo
                 Api.deleteMessage %chatId %messageId
                 |> callApiWithDefaultRetry config
-                |> Async.Ignore
+                |> Async.Map (function
+                    | Ok _ -> () // ignoring
+                    | Error apiError ->
+                        sprintf "Error %s with code %d on deleting message %A in chat %A"
+                            apiError.Description
+                            apiError.ErrorCode
+                            messageId
+                            chatId
+                        |> logErr
+                )
             
-            member __.BanUserByUsername chatUsername userUsername until =
+            member __.BanUserByUsername chatUsername userUsername until: Async<Result<unit, string>> =
+                sprintf "Banning user %A by name in chat %A until %A" userUsername chatUsername until
+                |> logInfo
                 ApiExt.banUserByUsername config %chatUsername %userUsername until
                 
-            member __.BanUserByUserId chatUsername userId until =
+            member __.BanUserByUserId chatUsername userId until: Async<Result<unit, string>> =
+                sprintf "Banning userId %A in chat %A until %A" userId chatUsername until
+                |> logInfo
                 ApiExt.banUserByUserId config %chatUsername %userId until
                 
-            member __.UnbanUser chatUsername username =
+            member __.UnbanUser chatUsername username: Async<Result<unit, string>> =
+                sprintf "Unbanning user %A in chat %A" username chatUsername
+                |> logInfo
                 ApiExt.unbanUserByUsername config %chatUsername %username
                 
-            member __.UnrestrictUser chatUsername username =
+            member __.SendTextMessage chatId text: Async<unit> =
+                sprintf "Sending {%s} into chat %A" text chatId
+                |> logInfo
+                ApiExt.sendMessage chatId config text
+                |> Async.Catch
+                |> Async.Map (function
+                    | Choice1Of2 () -> ()
+                    | Choice2Of2 e ->
+                        sprintf "Error on sending {%s} into chat %A" text chatId
+                        |> logExn e
+                )
+
+            member __.UnrestrictUser chatUsername username: Async<Result<unit, string>> =
+                sprintf "Unrestricting user %A in chat %A"username chatUsername
+                |> logInfo
                 ApiExt.unrestrictUserByUsername config %chatUsername %username
                 
-            member __.SendTextToChannel text =
+            member __.SendTextToChannel text: Async<unit> =
+                sprintf "Sending {%s} into special channel %A" text settings.ChannelId
+                |> logInfo
                 ApiExt.sendMessage settings.ChannelId config text
+                |> Async.Catch
+                |> Async.Map (function
+                    | Choice1Of2 () -> ()
+                    | Choice2Of2 e ->
+                        sprintf "Error on sending {%s} into special channel %A" text settings.ChannelId
+                        |> logExn e
+                )
             
-            member __.PrepareAndDownloadFile fileId =
+            member __.PrepareAndDownloadFile fileId: Async<Result<IO.Stream, string>> =
+                sprintf "Downloading file %A" fileId
+                |> logInfo
                 ApiExt.prepareAndDownloadFile config fileId
     }
     
@@ -83,11 +125,20 @@ module Program =
                 | UsernameFound username ->
                     return Some %(sprintf "@%s" username)
                 | UsernameNotFound ->
+                    sprintf "User %A hasn't been found in Datastore" userId
+                    |> logErr
                     return None
             }
             
             member __.UpsertUsers users =
                 Datastore.upsertUsers users
+                |> Async.Catch
+                |> Async.Map (function
+                    | Choice1Of2 () -> ()
+                    | Choice2Of2 e ->
+                        sprintf "Error on upserting new users %A" users
+                        |> logExn e
+                )
     }    
                 
     let onUpdate (settings: BotSettings) (botApi: IBotApi) (dataApi: IDataAccessApi) (context: UpdateContext) =
@@ -96,10 +147,21 @@ module Program =
                 |> Option.map ^ fun newMessage -> async {
                     match newMessage with
                     | NewAdminPrivateMessage document ->
+                        sprintf "Received: New admin private message with fileId: %s" document.FileId
+                        |> logInfo
                         do! processAdminCommand settings context.Config document.FileId
+                        
                     | NewUsersAdded users ->
+                        sprintf "Received: New users added %A" users
+                        |> logInfo
                         do! processNewUsersCommand users
+                        
                     | NewMessage message ->
+                        sprintf "Received: New message in chat %s from %s"
+                            (defaultArg message.Chat.Title "")
+                            (defaultArg (message.From |> Option.bind(fun x -> x.Username)) "")
+                        |> logDbg
+                        
                         match prepareTextMessage context.Me.Username message with
                         | Some newMessage ->
                             match authorize settings newMessage.FromUsername newMessage.ChatUsername with
@@ -108,9 +170,22 @@ module Program =
                                 do! command
                                     |> Option.map (formatMessage >> botApi.SendTextToChannel)
                                     |> Option.defaultValue Async.Unit
-                            | CommandNotAllowed -> ()
-                        | None -> ()
+                            | CommandNotAllowed ->
+                                sprintf "Command %s NOT allowed for user %A in chat %A"
+                                    newMessage.MessageText
+                                    newMessage.FromUsername
+                                    newMessage.ChatUsername
+                                |> logDbg
+                        | None ->
+                            sprintf "Skipping message %A from %A" message context.Me.Username
+                            |> logDbg
+                        
                     | NewReplyMessage reply ->
+                        sprintf "Received: New reply message in chat %s from %A"
+                            (defaultArg reply.Message.Chat.Title "")
+                            (defaultArg (reply.Message.From |> Option.bind(fun x -> x.Username)) "")
+                        |> logDbg
+                        
                         match prepareReplyToMessage context.Me.Username reply with
                         | Some replyMessage ->
                             match authorize settings replyMessage.FromUsername replyMessage.ChatUsername with
@@ -119,15 +194,29 @@ module Program =
                                 do! command
                                     |> Option.map (formatMessage >> botApi.SendTextToChannel)
                                     |> Option.defaultValue Async.Unit
-                            | CommandNotAllowed -> ()
-                        | None -> ()
-                    | IgnoreMessage -> ()
+                            | CommandNotAllowed ->
+                                sprintf "Command %s NOT allowed for user %A in chat %A"
+                                    replyMessage.MessageText
+                                    replyMessage.FromUsername
+                                    replyMessage.ChatUsername
+                                |> logDbg
+                        | None ->
+                            sprintf "Skipping message %A from %A" reply context.Me.Username
+                            |> logDbg
+                    | IgnoreMessage ->
+                        sprintf "Ignoring message %A" context.Update.Message
+                        |> logDbg
                 }
                 |> Option.defaultValue Async.Unit
         } |> Async.Start
         
     [<EntryPoint>]
     let main _ =
+        logger <- LoggerConfiguration()
+            .MinimumLevel.Information()
+            .WriteTo.Console()
+            .CreateLogger();
+        
         let mutable configBuilder =
             ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", false, true)
@@ -155,8 +244,6 @@ module Program =
 
         GrinderContext.MigrateUp()
         
-        printfn "Starting bot"
-        
         let settings = {
             Token = config.Token
             ChatsToMonitor = ChatsToMonitor.Create config.ChatsToMonitor
@@ -164,10 +251,20 @@ module Program =
             ChannelId = %config.ChannelId
             AdminUserId = %config.AdminUserId
         }
+
+        string { botConfiguration with Token = "***" }
+        |> sprintf "Bot Configuration %A"
+        |> logInfo
+        
+        string { settings with Token = "***" }
+        |> sprintf "Bot Settings %A"
+        |> logInfo
+        
+        logInfo "Starting bot"
         startBot botConfiguration (onUpdate settings (createBotApi botConfiguration settings) dataApi) None
         |> Async.Start
 
-        printfn "Bot started"
+        logInfo "Bot started"
         
         // Needed for azure web app deploy check. We have to response with anything on port 80
         use listener = new HttpListener()
@@ -180,7 +277,8 @@ module Program =
             let ctx = listener.GetContext()
             let output = ctx.Response.OutputStream
             output.Write(buffer, 0, buffer.Length)
-            output.Close();
+            output.Close()
+            logInfo "Sending OK on HTTP request"
         
-        printfn "Bot exited"
+        logInfo "Bot exited"
         0 // return an integer exit code

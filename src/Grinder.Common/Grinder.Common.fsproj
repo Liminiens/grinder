@@ -1,17 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
-        <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
-        <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
-    </PropertyGroup>
-
     <ItemGroup>
         <Compile Include="Library.fs" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="FSharp.Core" Version="4.6.2" />
+        <PackageReference Include="FSharp.Core" Version="5.0.0" />
         <PackageReference Include="TaskBuilder.fs" Version="2.1.0" />
     </ItemGroup>
 
