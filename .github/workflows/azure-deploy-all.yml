@@ -9,8 +9,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      
     - name: Deploy everything to Azure
+      env:
+        VAHTER_DEPLOY_APPID: ${{ secrets.VAHTER_DEPLOY_APPID }}
+        VAHTER_DEPLOY_PWD: ${{ secrets.VAHTER_DEPLOY_PWD }}
+        VAHTER_DEPLOY_TENANT: ${{ secrets.VAHTER_DEPLOY_TENANT }}
       run: |
         cd src/Grinder.Farmer
         dotnet run --all
