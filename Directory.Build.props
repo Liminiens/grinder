@@ -5,6 +5,5 @@
         <TieredCompilation>true</TieredCompilation>
         <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
         <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
-        <LangVersion>preview</LangVersion>
     </PropertyGroup>
 </Project>

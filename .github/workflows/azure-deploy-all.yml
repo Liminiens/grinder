@@ -1,10 +1,6 @@
-name: Deploy docker image
+name: Deploy everything to Azure 
 
-on:
-  push:
-    branches: [ master ]
-    paths-ignore: 
-      - "**.md"
+on: workflow_dispatch
 
 jobs:
   build:
@@ -13,7 +9,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build and push docker image to registry
+    - name: Deploy everything to Azure
       env:
         VAHTER_DEPLOY_APPID: ${{ secrets.VAHTER_DEPLOY_APPID }}
         VAHTER_DEPLOY_PWD: ${{ secrets.VAHTER_DEPLOY_PWD }}
@@ -21,4 +17,4 @@ jobs:
         VAHTER_CONFIG: ${{ secrets.VAHTER_CONFIG }}
       run: |
         cd src/Grinder.Farmer
-        dotnet run
+        dotnet run --all

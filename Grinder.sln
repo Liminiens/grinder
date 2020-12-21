@@ -24,6 +24,8 @@ ProjectSection(SolutionItems) = preProject
 	README.md = README.md
 EndProjectSection
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Grinder.Farmer", "src\Grinder.Farmer\Grinder.Farmer.fsproj", "{1B7B3688-F966-4F62-BDCA-ADF56B4E3160}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +52,10 @@ Global
 		{13E2DB48-FA8E-48A1-AD53-DA81EBE63A09}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{13E2DB48-FA8E-48A1-AD53-DA81EBE63A09}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{13E2DB48-FA8E-48A1-AD53-DA81EBE63A09}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1B7B3688-F966-4F62-BDCA-ADF56B4E3160}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1B7B3688-F966-4F62-BDCA-ADF56B4E3160}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1B7B3688-F966-4F62-BDCA-ADF56B4E3160}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1B7B3688-F966-4F62-BDCA-ADF56B4E3160}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

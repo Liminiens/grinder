@@ -584,8 +584,6 @@ module Processing =
             
             return Some <| UnbanOnReplyMessage(context.From, message, errors)
         | PingCommand context ->
-            sprintf "Sending PONG to %A" context.ChatId
-            |> logInfo
             do! botApi.SendTextMessage context.ChatId "pong"
             return None
         | DoNothingCommand ->

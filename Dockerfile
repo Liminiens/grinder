@@ -7,6 +7,7 @@ COPY src/Grinder.Common/Grinder.Common.fsproj ./src/Grinder.Common/Grinder.Commo
 COPY src/Grinder.DataAccess/Grinder.DataAccess.csproj ./src/Grinder.DataAccess/Grinder.DataAccess.csproj
 COPY tests/Grinder.Tests/Grinder.Tests.fsproj ./tests/Grinder.Tests/Grinder.Tests.fsproj
 COPY src/Grinder.ExportTool/Grinder.ExportTool.fsproj ./src/Grinder.ExportTool/Grinder.ExportTool.fsproj
+COPY src/Grinder.Farmer/Grinder.Farmer.fsproj ./src/Grinder.Farmer/Grinder.Farmer.fsproj
 COPY Directory.Build.props ./Directory.Build.props
 RUN dotnet tool restore
 RUN dotnet restore -r linux-x64
