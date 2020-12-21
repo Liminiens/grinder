@@ -1,5 +1,6 @@
 ﻿namespace Grinder
 
+open System.IO
 open System.Net
 open Microsoft.Extensions.Configuration
 open Funogram
@@ -222,7 +223,13 @@ module Program =
                 .AddJsonFile("appsettings.json", false, true)
                 .AddJsonFile("/etc/grinder/appsettings.json", true, true)
                 .AddEnvironmentVariables("Grinder_")
-                
+        
+        match Environment.GetEnvironmentVariable("VAHTER_CONFIG") with
+        | null -> ()
+        | config ->
+            configBuilder <- configBuilder
+                .AddJsonStream(new MemoryStream(System.Text.Encoding.ASCII.GetBytes config))
+        
         match Environment.GetEnvironmentVariable("DOTNETRU_APP_CONFIG") with
         | null -> ()
         | connString ->

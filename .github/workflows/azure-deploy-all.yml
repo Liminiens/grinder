@@ -1,0 +1,16 @@
+name: Deploy everything to Azure 
+
+on: workflow_dispatch
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Deploy everything to Azure
+      run: |
+        cd src/Grinder.Farmer
+        dotnet run --all

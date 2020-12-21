@@ -12,21 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Docker Login
-      uses: Azure/docker-login@v1
-      with:
-        username: ${{ secrets.AZURE_DOCKER_REGISTRY_USER }}
-        password: ${{ secrets.AZURE_DOCKER_REGISTRY_PASSWORD }}
-        login-server: https://dotnetru.azurecr.io/v1
-    
     - uses: actions/checkout@v2
-      
-    - name: Build Docker image
-      run: docker build . -t grinder
-    
-    - name: Tag Docker image
-      run: docker tag grinder dotnetru.azurecr.io/vahter/grinder
-      
-    - name: Push Docker image
-      run: docker push dotnetru.azurecr.io/vahter/grinder
-      
+    - name: Build and push docker image to registry
+      run: |
+        cd src/Grinder.Farmer
+        dotnet run

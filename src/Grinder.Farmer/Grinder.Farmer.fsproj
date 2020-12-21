@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net5.0</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="Program.fs" />
+        <Content Include="settings.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="README.MD" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="FSharp.Core" Version="5.0.0" />
+      <PackageReference Include="Farmer" Version="1.2.0" />
+      <PackageReference Include="MedallionShell" Version="1.6.2" />
+    </ItemGroup>
+
+</Project>

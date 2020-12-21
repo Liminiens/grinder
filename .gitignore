@@ -265,3 +265,7 @@ __pycache__/
 *.db
 /bot_config.json
 *.orig
+
+# Bot deployment settings
+/src/Grinder.Farmer/settings.json
+/src/Grinder.Farmer/.farmer
