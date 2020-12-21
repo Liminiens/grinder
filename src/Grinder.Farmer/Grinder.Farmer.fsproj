@@ -7,9 +7,6 @@
 
     <ItemGroup>
         <Compile Include="Program.fs" />
-        <Content Include="settings.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
         <Content Include="README.MD" />
     </ItemGroup>
 
