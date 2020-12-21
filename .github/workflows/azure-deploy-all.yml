@@ -14,6 +14,7 @@ jobs:
         VAHTER_DEPLOY_APPID: ${{ secrets.VAHTER_DEPLOY_APPID }}
         VAHTER_DEPLOY_PWD: ${{ secrets.VAHTER_DEPLOY_PWD }}
         VAHTER_DEPLOY_TENANT: ${{ secrets.VAHTER_DEPLOY_TENANT }}
+        VAHTER_CONFIG: ${{ secrets.VAHTER_CONFIG }}
       run: |
         cd src/Grinder.Farmer
         dotnet run --all
