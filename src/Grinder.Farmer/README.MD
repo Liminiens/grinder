@@ -14,9 +14,9 @@ To deploy just an image don't pass any argument
 - Net5 SDK
 
 - Azure credentials (put them in env variables)
-  - `VAHTER_DEPLOY_APPID`
-  - `VAHTER_DEPLOY_PWD`
-  - `VAHTER_DEPLOY_TENANT`
+  - `DOTNETRU_DEPLOY_APPID`
+  - `DOTNETRU_DEPLOY_PWD`
+  - `DOTNETRU_DEPLOY_TENANT`
     
 - Bot settings (pick one)
   - `settings.json` file
