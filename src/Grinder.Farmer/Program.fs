@@ -4,10 +4,12 @@ open Farmer
 open Farmer.Builders
 open Medallion.Shell
 
-let resourceGroup = "vahter-rg"
-let acrName = "vahterregistry"
-let logName = "vahter-log"
+let resourceGroup = "dotnetru-rg"
+let acrName = "dotnetruacr"
+let logName = "dotnetru-log"
 let appName = "vahter-app"
+
+let servicePlanName = "dotnetru-service-plan"
 
 let getEnv name =
     match Environment.GetEnvironmentVariable name with
@@ -17,9 +19,9 @@ let getEnv name =
 //        Console.ReadLine()
     | value -> value
 
-let appId = getEnv "VAHTER_DEPLOY_APPID"
-let pwd = getEnv "VAHTER_DEPLOY_PWD"
-let tenant = getEnv "VAHTER_DEPLOY_TENANT"
+let appId = getEnv "DOTNETRU_DEPLOY_APPID"
+let pwd = getEnv "DOTNETRU_DEPLOY_PWD"
+let tenant = getEnv "DOTNETRU_DEPLOY_TENANT"
 
 type Result.ResultBuilder with
     member _.Bind(cmd: Command, next: unit -> Result<'a, string>): Result<'a, string> =
@@ -33,7 +35,7 @@ type Result.ResultBuilder with
 let botSettings =
     let vahterConfig = Environment.GetEnvironmentVariable "VAHTER_CONFIG"
     if File.Exists "./settings.json" then
-        File.ReadAllText "settings.json"
+        File.ReadAllText "./settings.json"
     else if vahterConfig <> null then
         vahterConfig
     else
@@ -41,7 +43,6 @@ let botSettings =
 
 let logs = logAnalytics {
     name logName
-    
     retention_period 30<Days>
     enable_query
     enable_ingestion
@@ -54,21 +55,25 @@ let registry = containerRegistry {
     enable_admin_user
 }
 
+let servicePlan = servicePlan {
+    name servicePlanName
+    sku WebApp.Sku.B1
+    operating_system Linux
+}
+
 let botApp = webApp {
     name appName
 
     app_insights_off
     always_on
-    operating_system Linux
-    sku WebApp.Sku.B1
+    
+    link_to_service_plan servicePlan
     
     setting "VAHTER_CONFIG" botSettings
     
     docker_ci
     docker_use_azure_registry acrName
     docker_image "vahter/grinder:latest" ""
-    
-    depends_on logs.Name
 }
 
 let registryDeployment = arm {
@@ -81,10 +86,13 @@ let registryDeployment = arm {
 
 let appDeployment = arm {
     location Location.NorthEurope
-    add_resources [
-        logs
-        botApp
-    ]
+    add_resource servicePlan
+    add_resource botApp
+    add_resource logs
+}
+
+let addLogsToWebApp = arm {
+    location Location.NorthEurope
     add_resource (Resource.ofJson $"""
 {{
     "type": "Microsoft.Web/sites/providers/diagnosticSettings",
@@ -142,7 +150,7 @@ let pushDockerImage (host, user, pwd) = result {
 let deployAll() = result {
     // authenticate into Azure
     let! authResult = Deploy.authenticate appId pwd tenant
-    printfn "%A" authResult
+    printfn $"%A{authResult}"
     
     // deploying container registry
     let! registryDeploymentResult =
@@ -150,21 +158,35 @@ let deployAll() = result {
             resourceGroup
             Deploy.NoParameters
             registryDeployment
+            
+    printfn "ACR deployed successfully"
 
     let registryPwd = registryDeploymentResult.["pwd"]
     let registryLogin = registryDeploymentResult.["login"]
     let registryHost = registryDeploymentResult.["host"]
+    
+    printfn $"%A{registryDeploymentResult}"
 
     // build&push image to registry
     do! pushDockerImage(registryHost, registryLogin, registryPwd)
+    
+    printfn "Docker image pushed successfully"
 
-    // deploy webapp with bot
-    let! deploymentResult =
+    // deploy webapp
+    let! _ =
         Deploy.tryExecute
             resourceGroup
             [ botApp.DockerAcrCredentials.Value.Password.Value, registryPwd ]
             appDeployment
-    return printfn "%A" deploymentResult
+    printfn "Webapp, log analytic and service plan deployed successfully"
+    
+    // deploy logs
+    let! _ =
+        Deploy.tryExecute
+            resourceGroup
+            Deploy.NoParameters
+            addLogsToWebApp
+    return printfn "Logs linked with webapp successfully"
 }
 
 [<EntryPoint>]
@@ -180,6 +202,6 @@ let main argv =
         // deploy everything = resources + image
         deployAll()
     | x ->
-        failwithf "Unknown arguments %A" x
+        failwith $"Unknown arguments %A{x}"
     |> Result.get
     0
