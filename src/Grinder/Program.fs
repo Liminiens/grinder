@@ -176,7 +176,7 @@ module Program =
                                     newMessage.MessageText
                                     newMessage.FromUsername
                                     newMessage.ChatUsername
-                                |> logDbg
+                                |> logInfo
                         | None ->
                             sprintf "Skipping message %A from %A" message context.Me.Username
                             |> logDbg
@@ -200,13 +200,17 @@ module Program =
                                     replyMessage.MessageText
                                     replyMessage.FromUsername
                                     replyMessage.ChatUsername
-                                |> logDbg
+                                |> logInfo
                         | None ->
                             sprintf "Skipping message %A from %A" reply context.Me.Username
                             |> logDbg
                     | IgnoreMessage ->
                         sprintf "Ignoring message %A" context.Update.Message
                         |> logDbg
+                    | ChannelMessage message ->
+                        $"Deleting message {message.Text} from channel {message.From}"
+                        |> logInfo
+                        do! botApi.DeleteMessage %message.Chat.Id %message.MessageId
                 }
                 |> Option.defaultValue Async.Unit
         } |> Async.Start

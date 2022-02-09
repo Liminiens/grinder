@@ -56,6 +56,7 @@ type UpdateType =
     | NewUsersAdded of User list
     | NewMessage of Message
     | NewAdminPrivateMessage of Document
+    | ChannelMessage of Message
 
 [<RequireQualifiedAccess>]   
 module UpdateType =
@@ -69,6 +70,14 @@ module UpdateType =
                 | None ->
                     IgnoreMessage
             else
+                // check if message comes from channel, we should delete it immediately
+                if message.From.IsSome &&
+                   message.From.Value.IsBot &&
+                   message.From.Value.FirstName = "Channel" &&
+                   message.From.Value.Username = Some "Channel_Bot" then
+                       ChannelMessage message
+                else
+                
                 let hasCodeBlock =
                     message.Entities
                     |> Option.filter ^ fun entities ->
