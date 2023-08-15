@@ -1,6 +1,6 @@
 ﻿<Project>
     <PropertyGroup>
-        <TargetFramework>net5</TargetFramework>
+        <TargetFramework>net7.0</TargetFramework>
         <ServerGarbageCollection>false</ServerGarbageCollection>
         <TieredCompilation>true</TieredCompilation>
         <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
