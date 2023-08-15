@@ -32,7 +32,8 @@ let callApiWithDefaultRetry config = callApiWithRetry config 5
 module ApiExt =
     type UnbanChatMemberReq = 
         { ChatId: ChatId
-          UserId: int64 }
+          UserId: int64
+          OnlyIfBanned: Boolean }
         interface IRequestBase<bool> with
             member __.MethodName = "unbanChatMember"
             
@@ -54,8 +55,8 @@ module ApiExt =
         interface IRequestBase<bool> with
             member __.MethodName = "restrictChatMember"
     
-    let unbanChatMemberByChatNameExt chatName userId : UnbanChatMemberReq =
-        { ChatId = ChatId.String chatName; UserId = userId }
+    let unbanChatMemberByChatNameExt chatName userId onlyIfBanned : UnbanChatMemberReq =
+        { ChatId = ChatId.String chatName; UserId = userId; OnlyIfBanned = onlyIfBanned }
              
     let restrictChatMemberBaseExt chatId userId (untilDate: DateTime) canSendMessages canSendMediaMessages canSendOtherMessages canAddWebPagePreviews =
         let seconds = int64 (untilDate.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds
@@ -92,11 +93,11 @@ module ApiExt =
             return Error <| sprintf "Failed to ban %i in chat %s. Description: %s" userId chat e.Description
     }
             
-    let unbanUserByUsername context chat username = async {
+    let unbanUserByUsername context chat username onlyIfBanned = async {
         match! Datastore.findUserIdByUsername username with
         | UserIdFound userId ->
             let! unbanResult = 
-                unbanChatMemberByChatNameExt chat userId
+                unbanChatMemberByChatNameExt chat userId onlyIfBanned
                 |> callApiWithDefaultRetry context
             match unbanResult with
             | Ok _ ->

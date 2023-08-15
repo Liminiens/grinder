@@ -82,7 +82,7 @@ module Program =
             member __.UnbanUser chatUsername username: Async<Result<unit, string>> =
                 sprintf "Unbanning user %A in chat %A" username chatUsername
                 |> logInfo
-                ApiExt.unbanUserByUsername config %chatUsername %username
+                ApiExt.unbanUserByUsername config %chatUsername %username true // Do nothing if user not banned
                 
             member __.SendTextMessage chatId text: Async<unit> =
                 sprintf "Sending {%s} into chat %A" text chatId
